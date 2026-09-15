@@ -1,0 +1,18 @@
+{
+    "runtime": {
+        "version": "Lua 5.1"
+    },
+    "diagnostics": {
+        "enable": true,
+        "globals": [
+            "CreateFrame",
+            "UIParent",
+            "SlashCmdList",
+            "DEFAULT_CHAT_FRAME",
+            "dofile"
+        ]
+    },
+    "workspace": {
+        "checkThirdParty": false
+    }
+}

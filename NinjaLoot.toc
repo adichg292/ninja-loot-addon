@@ -1,0 +1,8 @@
+## Title: NinjaLoot Addon
+## Author: Pastah
+## Version: 0.1.0
+
+UI/Button.lua
+UI/CloseButton.lua
+UI/MainWindow.lua
+Core.lua
