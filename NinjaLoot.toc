@@ -1,8 +1,43 @@
 ## Title: NinjaLoot Addon
 ## Author: Pastah
 ## Version: 0.1.0
+## SavedVariables: NinjaLootDatabase
+## Interface: 120001
 
-UI/Button.lua
-UI/CloseButton.lua
-UI/MainWindow.lua
 Core.lua
+
+Loot/Players/Player.lua
+Loot/Players/PlayerManager.lua
+
+Loot/Items/Item.lua
+Loot/Items/ItemManager.lua
+
+Loot/Bosses/Boss.lua
+Loot/Bosses/BossManager.lua
+
+Loot/Lifecycles/Lifecycle.lua
+
+Loot/Distributions/Constants.lua
+Loot/Distributions/DistributionResponse.lua
+Loot/Distributions/DistributionPhase.lua
+Loot/Distributions/Distribution.lua
+Loot/Distributions/DistributionManager.lua
+Loot/Distributions/AwardService.lua
+Loot/Distributions/WoWAwardHandler.lua
+
+Loot/Config/Config.lua
+Loot/Config/ConfigManager.lua
+
+Loot/History/HistoryManager.lua
+
+Loot/Sessions/Session.lua
+Loot/Sessions/SessionManager.lua
+Loot/Sessions/SessionPersistence.lua
+
+Loot/LootManager.lua
+
+UI/Constants.lua
+UI/Components/Button.lua
+UI/Components/CloseButton.lua
+UI/Components/ConfirmDialog.lua
+UI/MainWindow.lua

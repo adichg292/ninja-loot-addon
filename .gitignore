@@ -1,0 +1,106 @@
+# ==========================================
+# NinjaLoot Addon - Git Ignore
+# ==========================================
+
+# ------------------------------------------
+# VS Code
+# ------------------------------------------
+.vscode/
+*.code-workspace
+
+# ------------------------------------------
+# Operating system files
+# ------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ------------------------------------------
+# Lua / language server
+# ------------------------------------------
+.lua-version
+.luarc.json.bak
+.wowluarc.json.bak
+
+# ------------------------------------------
+# Lua / test runtime output
+# ------------------------------------------
+*.log
+*.tmp
+*.temp
+coverage/
+luac.out
+
+# ------------------------------------------
+# WoW generated files
+# ------------------------------------------
+WTF/
+Cache/
+Logs/
+Screenshots/
+
+# SavedVariables generated during local testing
+SavedVariables/
+*_SavedVariables.lua
+
+# ------------------------------------------
+# WoW UI simulator / local runtime
+# ------------------------------------------
+wow-ui-sim/
+wow-sim/
+wow-sim-data/
+wow-sim-cache/
+
+# ------------------------------------------
+# Docker
+# ------------------------------------------
+docker-compose.override.yml
+.docker/
+
+# ------------------------------------------
+# Build / generated output
+# ------------------------------------------
+build/
+dist/
+out/
+bin/
+obj/
+
+# ------------------------------------------
+# Temporary files
+# ------------------------------------------
+*.bak
+*.backup
+*.old
+*.orig
+*.swp
+*.swo
+*~
+
+# ------------------------------------------
+# Windows / PowerShell
+# ------------------------------------------
+*.stackdump
+
+# ------------------------------------------
+# Node / npm artifacts
+# ------------------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ------------------------------------------
+# Rust artifacts
+# ------------------------------------------
+target/
+
+# ------------------------------------------
+# Miscellaneous local files
+# ------------------------------------------
+.env
+.env.*
+!.env.example
+
+implementation.txt

@@ -1,22 +1,43 @@
 local addon = {}
 
-local loadButton = assert(loadfile("UI/Button.lua"))
+local loadButton = assert(
+    loadfile("UI/Components/Button.lua")
+)
 loadButton("NinjaLoot", addon)
 
-local loadCloseButton = assert(loadfile("UI/CloseButton.lua"))
+local loadCloseButton = assert(
+    loadfile("UI/Components/CloseButton.lua")
+)
 loadCloseButton("NinjaLoot", addon)
 
-assert(addon.UI ~= nil, "UI namespace was not created")
 assert(
-    addon.UI.CreateCloseButton ~= nil,
+    addon.UI ~= nil,
+    "UI namespace was not created"
+)
+
+assert(
+    addon.UI.Components ~= nil,
+    "UI Components namespace was not created"
+)
+
+assert(
+    addon.UI.Components.CreateCloseButton ~= nil,
     "CreateCloseButton was not created"
 )
 
-local parent = CreateFrame("Frame", "TestParent", UIParent)
+local parent = CreateFrame(
+    "Frame",
+    "TestParent",
+    UIParent
+)
 
-local closeButton = addon.UI.CreateCloseButton(parent)
+local closeButton = addon.UI.Components.CreateCloseButton(parent)
 
-assert(closeButton ~= nil, "Close button was not created")
+assert(
+    closeButton ~= nil,
+    "Close button was not created"
+)
+
 assert(
     closeButton.frameType == "Button",
     "Close button is not a Button"
@@ -60,5 +81,3 @@ assert(
     parent:IsShown() == false,
     "Parent should be hidden after clicking close"
 )
-
-print("Close button UI tests passed!")

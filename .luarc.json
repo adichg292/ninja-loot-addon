@@ -6,10 +6,22 @@
         "enable": true,
         "globals": [
             "CreateFrame",
+            "LootSlot",
+            "LootSlotHasItem",
+            "GetNumLootItems",
+            "GetLootSlotInfo",
+            "GetLootSlotLink",
+            "GetLootSlotType",
+            "InitiateTrade",
+            "GiveMasterLoot",
+            "GetServerTime",
             "UIParent",
             "SlashCmdList",
             "DEFAULT_CHAT_FRAME",
-            "dofile"
+            "dofile",
+            "loadfile",
+            "os",
+            "time"
         ]
     },
     "workspace": {
