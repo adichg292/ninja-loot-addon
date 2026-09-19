@@ -1,901 +1,726 @@
 local addonName, addon = ...
 
 addon.UI = addon.UI or {}
+addon.UI.Components = addon.UI.Components or {}
 
-local Config =
-    addon.Loot.Config.Config
-
-local Constants =
-    addon.UI.Constants.MainWindow
+local UI = addon.UI
+local Components = UI.Components
 
 local MainWindow = {}
+MainWindow.__index = MainWindow
 
-local function createTab(
-    parent,
-    name,
-    text
-)
-    local button =
-        addon.UI.Components.CreateButton(
-            parent,
-            name,
-            Constants.TabSize.Width,
-            Constants.TabSize.Height
+local function getSessionManager()
+    return addon.sessionManager
+end
+
+local function getLootManager()
+    return addon.lootManager
+end
+
+local function getHistoryManager()
+    return addon.historyManager
+end
+
+local function getConfigManager()
+    return addon.configManager
+end
+
+function MainWindow:CreateTitle()
+    local title =
+        self.frame:CreateFontString(
+            nil,
+            "OVERLAY",
+            "GameFontHighlightLarge"
         )
 
-    button:SetText(text)
+    title:SetPoint(
+        "TOPLEFT",
+        self.frame,
+        "TOPLEFT",
+        20,
+        -15
+    )
+
+    title:SetText(
+        UI.Constants.MainWindow.Title
+    )
+
+    self.title = title
+
+    return title
+end
+
+function MainWindow:CreateCloseButton()
+    local button =
+        Components.CreateCloseButton(
+            self.frame
+        )
+
+    button:SetPoint(
+        "TOPRIGHT",
+        self.frame,
+        "TOPRIGHT",
+        -15,
+        -15
+    )
+
+    self.closeButton = button
 
     return button
 end
 
-local function createPanel(
-    parent
-)
-    local panel = CreateFrame(
-        "Frame",
-        nil,
-        parent
-    )
+function MainWindow:CreateTabs()
+    self.tabs = {}
 
-    panel:SetSize(
-        Constants.PanelSize.Width,
-        Constants.PanelSize.Height
-    )
-
-    panel:SetPoint(
-        "TOPLEFT"
-    )
-
-    panel:Hide()
-
-    return panel
-end
-
-local function createSettingButton(
-    parent,
-    name,
-    text,
-    onClick
-)
-    local button =
-        addon.UI.Components.CreateButton(
-            parent,
-            name,
-            Constants.SettingButtonSize.Width,
-            Constants.SettingButtonSize.Height
-        )
-
-    button:SetText(text)
-
-    button:SetScript(
-        "OnClick",
-        onClick
-    )
-
-    return button
-end
-
-local function formatBoolean(
-    value
-)
-    if value then
-        return "On"
-    end
-
-    return "Off"
-end
-
-local function createGeneralPanel(
-    parent
-)
-    local panel =
-        createPanel(parent)
-
-    panel.settings = {}
-
-    local config =
-        addon.configManager
-
-    local function refresh()
-        panel.settings.minimap:SetText(
-            Constants.General.MinimapButton
-            .. ": "
-            .. formatBoolean(
-                config:Get(
-                    "General.MinimapButton"
-                )
-            )
-        )
-
-        panel.settings.scale:SetText(
-            Constants.General.UIScale
-            .. ": "
-            .. tostring(
-                config:Get(
-                    "General.UIScale"
-                )
-            )
-        )
-
-        panel.settings.notifications:SetText(
-            Constants.General.Notifications
-            .. ": "
-            .. formatBoolean(
-                config:Get(
-                    "General.Notifications"
-                )
-            )
-        )
-
-        panel.settings.verbosity:SetText(
-            Constants.General.NotificationVerbosity
-            .. ": "
-            .. config:Get(
-                "General.NotificationVerbosity"
-            )
-        )
-
-        panel.settings.debug:SetText(
-            Constants.General.DebugLogging
-            .. ": "
-            .. formatBoolean(
-                config:Get(
-                    "General.DebugLogging"
-                )
-            )
-        )
-
-        panel.settings.confirm:SetText(
-            Constants.General.ConfirmDestructiveActions
-            .. ": "
-            .. formatBoolean(
-                config:Get(
-                    "General.ConfirmDestructiveActions"
-                )
-            )
-        )
-
-        panel.settings.history:SetText(
-            Constants.General.ShowDistributionHistory
-            .. ": "
-            .. formatBoolean(
-                config:Get(
-                    "General.ShowDistributionHistory"
-                )
-            )
-        )
-
-        panel.settings.keepHistory:SetText(
-            Constants.General.KeepSessionHistory
-            .. ": "
-            .. tostring(
-                config:Get(
-                    "General.KeepSessionHistoryDays"
-                )
-            )
-            .. " days"
-        )
-    end
-
-    panel.settings.minimap =
-        createSettingButton(
-            panel,
-            "NinjaLootGeneralMinimap",
-            "",
-            function()
-                config:Set(
-                    "General.MinimapButton",
-                    not config:Get(
-                        "General.MinimapButton"
-                    )
-                )
-
-                refresh()
-            end
-        )
-
-    panel.settings.scale =
-        createSettingButton(
-            panel,
-            "NinjaLootGeneralScale",
-            "",
-            function()
-                local current =
-                    config:Get(
-                        "General.UIScale"
-                    )
-
-                local nextValue =
-                    current + 0.1
-
-                if nextValue > 2.0 then
-                    nextValue = 0.5
-                end
-
-                config:Set(
-                    "General.UIScale",
-                    nextValue
-                )
-
-                refresh()
-            end
-        )
-
-    panel.settings.notifications =
-        createSettingButton(
-            panel,
-            "NinjaLootGeneralNotifications",
-            "",
-            function()
-                config:Set(
-                    "General.Notifications",
-                    not config:Get(
-                        "General.Notifications"
-                    )
-                )
-
-                refresh()
-            end
-        )
-
-    panel.settings.verbosity =
-        createSettingButton(
-            panel,
-            "NinjaLootGeneralVerbosity",
-            "",
-            function()
-                local current =
-                    config:Get(
-                        "General.NotificationVerbosity"
-                    )
-
-                local nextValue =
-                    Config.NotificationVerbosity.DETAILED
-
-                if current
-                    == Config.NotificationVerbosity.DETAILED
-                then
-                    nextValue =
-                        Config.NotificationVerbosity.NORMAL
-                end
-
-                config:Set(
-                    "General.NotificationVerbosity",
-                    nextValue
-                )
-
-                refresh()
-            end
-        )
-
-    panel.settings.debug =
-        createSettingButton(
-            panel,
-            "NinjaLootGeneralDebug",
-            "",
-            function()
-                config:Set(
-                    "General.DebugLogging",
-                    not config:Get(
-                        "General.DebugLogging"
-                    )
-                )
-
-                refresh()
-            end
-        )
-
-    panel.settings.confirm =
-        createSettingButton(
-            panel,
-            "NinjaLootGeneralConfirm",
-            "",
-            function()
-                config:Set(
-                    "General.ConfirmDestructiveActions",
-                    not config:Get(
-                        "General.ConfirmDestructiveActions"
-                    )
-                )
-
-                refresh()
-            end
-        )
-
-    panel.settings.history =
-        createSettingButton(
-            panel,
-            "NinjaLootGeneralHistory",
-            "",
-            function()
-                config:Set(
-                    "General.ShowDistributionHistory",
-                    not config:Get(
-                        "General.ShowDistributionHistory"
-                    )
-                )
-
-                refresh()
-            end
-        )
-
-    panel.settings.keepHistory =
-        createSettingButton(
-            panel,
-            "NinjaLootGeneralKeepHistory",
-            "",
-            function()
-                local current =
-                    config:Get(
-                        "General.KeepSessionHistoryDays"
-                    )
-
-                local nextValue =
-                    current + 30
-
-                if nextValue > 3650 then
-                    nextValue = 30
-                end
-
-                config:Set(
-                    "General.KeepSessionHistoryDays",
-                    nextValue
-                )
-
-                refresh()
-            end
-        )
-
-    refresh()
-
-    return panel
-end
-
-local function createLootPanel(
-    parent
-)
-    local panel =
-        createPanel(parent)
-
-    panel.systemPanels = {}
-    panel.systemTabs = {}
-
-    local systems = {
+    local definitions = {
         {
-            key = Constants.Systems.RoundRobin,
-            text = Constants.Loot.Systems.RoundRobin,
+            key = "Raid",
+            text =
+                UI.Constants.MainWindow.Tabs.Raid,
         },
         {
-            key = Constants.Systems.EPGP,
-            text = Constants.Loot.Systems.EPGP,
+            key = "Loot",
+            text =
+                UI.Constants.MainWindow.Tabs.Loot,
         },
         {
-            key = Constants.Systems.DKP,
-            text = Constants.Loot.Systems.DKP,
+            key = "History",
+            text =
+                UI.Constants.MainWindow.Tabs.History,
         },
         {
-            key = Constants.Systems.LootCouncil,
-            text = Constants.Loot.Systems.LootCouncil,
-        },
-        {
-            key = Constants.Systems.GDKP,
-            text = Constants.Loot.Systems.GDKP,
+            key = "Settings",
+            text =
+                UI.Constants.MainWindow.Tabs.Settings,
         },
     }
 
-    local function showSystem(
-        systemKey
-    )
-        for key, systemPanel in pairs(
-            panel.systemPanels
-        ) do
-            if key == systemKey then
-                systemPanel:Show()
-            else
-                systemPanel:Hide()
-            end
-        end
-    end
+    local previous = nil
 
-    for _, system in ipairs(
-        systems
-    ) do
+    for _, definition in ipairs(definitions) do
         local button =
-            createTab(
-                panel,
-                "NinjaLootLootTab"
-                .. system.key,
-                system.text
+            Components.CreateButton(
+                self.frame,
+                "NinjaLootTab"
+                    .. definition.key,
+                UI.Constants.MainWindow.TabSize.Width,
+                UI.Constants.MainWindow.TabSize.Height
             )
 
-        button:SetPoint(
-            "TOPLEFT"
+        if previous == nil then
+            button:SetPoint(
+                "TOPLEFT",
+                self.frame,
+                "TOPLEFT",
+                20,
+                -55
+            )
+        else
+            button:SetPoint(
+                "LEFT",
+                previous,
+                "RIGHT",
+                5,
+                0
+            )
+        end
+
+        button:SetText(
+            definition.text
         )
 
-        panel.systemTabs[
-        system.key
-        ] = button
+        local tabKey =
+            definition.key
 
         button:SetScript(
             "OnClick",
             function()
-                showSystem(
-                    system.key
-                )
+                self:SelectTab(tabKey)
             end
         )
+
+        self.tabs[tabKey] =
+            button
+
+        previous = button
     end
 
-    local roundRobin =
-        createPanel(panel)
+    return self.tabs
+end
 
-    roundRobin:SetPoint(
+function MainWindow:CreateContent()
+    local content = CreateFrame(
+        "Frame",
+        "NinjaLootMainWindowContent",
+        self.frame
+    )
+
+    content:SetPoint(
+        "TOPLEFT",
+        self.frame,
+        "TOPLEFT",
+        15,
+        -95
+    )
+
+    content:SetPoint(
+        "BOTTOMRIGHT",
+        self.frame,
+        "BOTTOMRIGHT",
+        -15,
+        15
+    )
+
+    self.content = content
+
+    return content
+end
+
+function MainWindow:CreateTabPanel(name)
+    local panel = CreateFrame(
+        "Frame",
+        name,
+        self.content
+    )
+
+    panel:SetPoint(
+        "TOPLEFT",
+        self.content,
         "TOPLEFT"
     )
 
-    panel.systemPanels[
-    Constants.Systems.RoundRobin
-    ] = roundRobin
+    panel:SetPoint(
+        "BOTTOMRIGHT",
+        self.content,
+        "BOTTOMRIGHT"
+    )
 
-    local config =
-        addon.configManager
+    return panel
+end
 
-    local function refresh()
-        roundRobin.rollPeriod:SetText(
-            Constants.Loot.RoundRobin.RollPeriod
-            .. ": "
-            .. tostring(
-                config:Get(
-                    "Loot.RoundRobin.RollPeriodSeconds"
-                )
-            )
-            .. " sec"
+function MainWindow:CreateRaidTab()
+    local panel =
+        self:CreateTabPanel(
+            "NinjaLootRaidTab"
         )
 
-        roundRobin.gracePeriod:SetText(
-            Constants.Loot.RoundRobin.GracePeriod
-            .. ": "
-            .. tostring(
-                config:Get(
-                    "Loot.RoundRobin.RollGracePeriodSeconds"
-                )
-            )
-            .. " sec"
+    self.sessionPanel =
+        UI.Sessions.SessionPanel.New(
+            panel
         )
 
-        roundRobin.resultPeriod:SetText(
-            Constants.Loot.RoundRobin.ResultPeriod
-            .. ": "
-            .. tostring(
-                config:Get(
-                    "Loot.RoundRobin.ResultPeriodSeconds"
-                )
-            )
-            .. " sec"
+    self.bossPanel =
+        UI.Bosses.BossPanel.New(
+            panel
         )
 
-        roundRobin.announce:SetText(
-            Constants.Loot.RoundRobin.Announce
-            .. ": "
-            .. formatBoolean(
-                config:Get(
-                    "Loot.RoundRobin.AnnounceMLActions"
-                )
-            )
+    self.bossPanel.frame:SetPoint(
+        "TOPLEFT",
+        panel,
+        "TOPLEFT",
+        0,
+        -220
+    )
+
+    self.lootList =
+        UI.Loot.LootList.New(
+            panel
         )
 
-        roundRobin.restart:SetText(
-            Constants.Loot.RoundRobin.Restart
-            .. ": "
-            .. formatBoolean(
-                config:Get(
-                    "Loot.RoundRobin.AllowRestartVoting"
-                )
-            )
+    self.lootList.frame:SetPoint(
+        "TOPLEFT",
+        panel,
+        "TOPLEFT",
+        0,
+        -350
+    )
+
+    self.raidTab = panel
+
+    return panel
+end
+
+function MainWindow:CreateLootTab()
+    local panel =
+        self:CreateTabPanel(
+            "NinjaLootLootTab"
         )
+
+    local title =
+        panel:CreateFontString(
+            nil,
+            "OVERLAY",
+            "GameFontNormalLarge"
+        )
+
+    title:SetPoint(
+        "TOPLEFT",
+        panel,
+        "TOPLEFT",
+        10,
+        -10
+    )
+
+    title:SetText(
+        "Loot Management"
+    )
+
+    local text =
+        panel:CreateFontString(
+            nil,
+            "OVERLAY",
+            "GameFontHighlight"
+        )
+
+    text:SetPoint(
+        "TOPLEFT",
+        title,
+        "BOTTOMLEFT",
+        0,
+        -12
+    )
+
+    text:SetJustifyH("LEFT")
+
+    text:SetText(
+        "Loot management will appear here.\n\n"
+        .. "The temporary Master Looter distribution "
+        .. "window will be implemented separately."
+    )
+
+    self.lootTab = panel
+    self.lootTabText = text
+
+    return panel
+end
+
+function MainWindow:CreateHistoryTab()
+    local panel =
+        self:CreateTabPanel(
+            "NinjaLootHistoryTab"
+        )
+
+    local title =
+        panel:CreateFontString(
+            nil,
+            "OVERLAY",
+            "GameFontNormalLarge"
+        )
+
+    title:SetPoint(
+        "TOPLEFT",
+        panel,
+        "TOPLEFT",
+        10,
+        -10
+    )
+
+    title:SetText(
+        "Distribution History"
+    )
+
+    local text =
+        panel:CreateFontString(
+            nil,
+            "OVERLAY",
+            "GameFontHighlight"
+        )
+
+    text:SetPoint(
+        "TOPLEFT",
+        title,
+        "BOTTOMLEFT",
+        0,
+        -12
+    )
+
+    text:SetJustifyH("LEFT")
+
+    text:SetText(
+        "No distribution history."
+    )
+
+    self.historyTab = panel
+    self.historyTabText = text
+
+    return panel
+end
+
+function MainWindow:CreateSettingsTab()
+    local panel =
+        self:CreateTabPanel(
+            "NinjaLootSettingsTab"
+        )
+
+    local title =
+        panel:CreateFontString(
+            nil,
+            "OVERLAY",
+            "GameFontNormalLarge"
+        )
+
+    title:SetPoint(
+        "TOPLEFT",
+        panel,
+        "TOPLEFT",
+        10,
+        -10
+    )
+
+    title:SetText(
+        "Settings"
+    )
+
+    local text =
+        panel:CreateFontString(
+            nil,
+            "OVERLAY",
+            "GameFontHighlight"
+        )
+
+    text:SetPoint(
+        "TOPLEFT",
+        title,
+        "BOTTOMLEFT",
+        0,
+        -12
+    )
+
+    text:SetJustifyH("LEFT")
+
+    text:SetText(
+        "General and loot-system settings."
+    )
+
+    self.settingsTab = panel
+    self.settingsTabText = text
+
+    return panel
+end
+
+function MainWindow:CreateTabsContent()
+    self.tabPanels = {}
+
+    self.tabPanels.Raid =
+        self:CreateRaidTab()
+
+    self.tabPanels.Loot =
+        self:CreateLootTab()
+
+    self.tabPanels.History =
+        self:CreateHistoryTab()
+
+    self.tabPanels.Settings =
+        self:CreateSettingsTab()
+
+    return self.tabPanels
+end
+
+function MainWindow:SelectTab(tabKey)
+    assert(
+        self.tabPanels[tabKey] ~= nil,
+        "Unknown Main Window tab: "
+            .. tostring(tabKey)
+    )
+
+    for key, panel in pairs(
+        self.tabPanels
+    ) do
+        if key == tabKey then
+            panel:Show()
+        else
+            panel:Hide()
+        end
     end
 
-    roundRobin.rollPeriod =
-        createSettingButton(
-            roundRobin,
-            "NinjaLootRRRollPeriod",
-            "",
-            function()
-                local values = {
-                    5,
-                    10,
-                    15,
-                    20,
-                    25,
-                    30,
-                    45,
-                    60,
-                }
+    for key, button in pairs(
+        self.tabs
+    ) do
+        if key == tabKey then
+            button:Disable()
+        else
+            button:Enable()
+        end
+    end
 
-                local current =
-                    config:Get(
-                        "Loot.RoundRobin.RollPeriodSeconds"
-                    )
+    self.activeTab = tabKey
 
-                local nextValue =
-                    values[1]
+    return self
+end
 
-                for index, value in ipairs(
-                    values
-                ) do
-                    if value == current then
-                        nextValue =
-                            values[
-                            index + 1
-                            ]
-                            or values[1]
+function MainWindow:GetActiveTab()
+    return self.activeTab
+end
 
-                        break
-                    end
-                end
+function MainWindow:UpdateRaid()
+    local sessionManager =
+        getSessionManager()
 
-                config:Set(
-                    "Loot.RoundRobin.RollPeriodSeconds",
-                    nextValue
-                )
+    local session = nil
 
-                refresh()
-            end
+    if sessionManager ~= nil then
+        session =
+            sessionManager:GetActive()
+    end
+
+    self.sessionPanel:Update(
+        session
+    )
+
+    self.bossPanel:Update(
+        session
+    )
+
+    self.lootList:Update(
+        getLootManager()
+    )
+
+    return self
+end
+
+function MainWindow:UpdateLoot()
+    local lootManager =
+        getLootManager()
+
+    if lootManager == nil then
+        self.lootTabText:SetText(
+            "Loot manager is not available."
         )
 
-    roundRobin.gracePeriod =
-        createSettingButton(
-            roundRobin,
-            "NinjaLootRRGracePeriod",
-            "",
-            function()
-                local current =
-                    config:Get(
-                        "Loot.RoundRobin.RollGracePeriodSeconds"
-                    )
+        return self
+    end
 
-                local nextValue = 1
+    local items =
+        lootManager:GetLootItems()
 
-                if current == 1 then
-                    nextValue = 2
-                elseif current == 2 then
-                    nextValue = 3
-                end
-
-                config:Set(
-                    "Loot.RoundRobin.RollGracePeriodSeconds",
-                    nextValue
-                )
-
-                refresh()
-            end
+    if items == nil
+        or #items == 0
+    then
+        self.lootTabText:SetText(
+            "No loot is currently available."
         )
 
-    roundRobin.resultPeriod =
-        createSettingButton(
-            roundRobin,
-            "NinjaLootRRResultPeriod",
-            "",
-            function()
-                local current =
-                    config:Get(
-                        "Loot.RoundRobin.ResultPeriodSeconds"
-                    )
+        return self
+    end
 
-                local nextValue = 5
-
-                if current == 5 then
-                    nextValue = 10
-                elseif current == 10 then
-                    nextValue = 15
-                elseif current == 15 then
-                    nextValue = 20
-                end
-
-                config:Set(
-                    "Loot.RoundRobin.ResultPeriodSeconds",
-                    nextValue
-                )
-
-                refresh()
-            end
-        )
-
-    roundRobin.announce =
-        createSettingButton(
-            roundRobin,
-            "NinjaLootRRAnnounce",
-            "",
-            function()
-                config:Set(
-                    "Loot.RoundRobin.AnnounceMLActions",
-                    not config:Get(
-                        "Loot.RoundRobin.AnnounceMLActions"
-                    )
-                )
-
-                refresh()
-            end
-        )
-
-    roundRobin.restart =
-        createSettingButton(
-            roundRobin,
-            "NinjaLootRRRestart",
-            "",
-            function()
-                config:Set(
-                    "Loot.RoundRobin.AllowRestartVoting",
-                    not config:Get(
-                        "Loot.RoundRobin.AllowRestartVoting"
-                    )
-                )
-
-                refresh()
-            end
-        )
-
-    refresh()
-
-    local emptyPanels = {
-        [
-        Constants.Systems.EPGP
-        ] = Constants.Loot.Placeholder.EPGP,
-
-        [
-        Constants.Systems.DKP
-        ] = Constants.Loot.Placeholder.DKP,
-
-        [
-        Constants.Systems.LootCouncil
-        ] = Constants.Loot.Placeholder.LootCouncil,
-
-        [
-        Constants.Systems.GDKP
-        ] = Constants.Loot.Placeholder.GDKP,
+    local lines = {
+        "Current Loot:",
+        "",
     }
 
-    for key, text in pairs(
-        emptyPanels
-    ) do
-        local systemPanel =
-            createPanel(panel)
+    for index, item in ipairs(items) do
+        local state = "UNKNOWN"
 
-        systemPanel.message =
-            text
+        if item.GetState ~= nil then
+            state =
+                item:GetState()
+        end
 
-        panel.systemPanels[key] =
-            systemPanel
+        table.insert(
+            lines,
+            tostring(index)
+                .. ". "
+                .. item:GetName()
+                .. " ["
+                .. tostring(state)
+                .. "]"
+        )
     end
 
-    showSystem(
-        Constants.Systems.RoundRobin
+    self.lootTabText:SetText(
+        table.concat(
+            lines,
+            "\n"
+        )
     )
 
-    return panel
+    return self
 end
 
-local function createHistoryPanel(
-    parent
-)
-    local panel =
-        createPanel(parent)
+function MainWindow:UpdateHistory()
+    local historyManager =
+        getHistoryManager()
 
-    panel.offset = 0
-    panel.pageSize =
-        Constants.History.PageSize
-
-    panel.rows = {}
-
-    local function itemText(
-        entry
-    )
-        local item = entry.item
-
-        if type(item) == "table" then
-            if item.link ~= nil then
-                return item.link
-            end
-
-            if item.name ~= nil then
-                return item.name
-            end
-        end
-
-        return tostring(item)
-    end
-
-    local function refresh()
-        for _, row in ipairs(
-            panel.rows
-        ) do
-            row:Hide()
-        end
-
-        local entries =
-            addon.historyManager:GetPage(
-                panel.offset,
-                panel.pageSize
-            )
-
-        for index, entry in ipairs(
-            entries
-        ) do
-            local row =
-                panel.rows[index]
-
-            if row == nil then
-                row =
-                    addon.UI.Components.CreateButton(
-                        panel,
-                        "NinjaLootHistoryRow"
-                        .. tostring(index),
-                        Constants.History.RowSize.Width,
-                        Constants.History.RowSize.Height
-                    )
-
-                panel.rows[index] =
-                    row
-            end
-
-            row:SetText(
-                string.format(
-                    Constants.History.RowFormat,
-                    itemText(entry),
-                    entry.recipient,
-                    entry.boss
-                )
-            )
-
-            row:Show()
-        end
-
-        local nextButton =
-            panel.nextButton
-
-        if addon.historyManager:GetTotalCount()
-            > panel.offset + panel.pageSize
-        then
-            nextButton:Show()
-
-            nextButton:SetText(
-                Constants.History.LoadMore
-            )
-        else
-            nextButton:Hide()
-        end
-    end
-
-    panel.nextButton =
-        addon.UI.Components.CreateButton(
-            panel,
-            "NinjaLootHistoryLoadMore",
-            Constants.HistoryLoadMoreSize.Width,
-            Constants.HistoryLoadMoreSize.Height
+    if historyManager == nil then
+        self.historyTabText:SetText(
+            "History manager is not available."
         )
 
-    panel.nextButton:SetText(
-        Constants.History.LoadMore
+        return self
+    end
+
+    local history = nil
+
+    if historyManager.GetAll ~= nil then
+        history =
+            historyManager:GetAll()
+    elseif historyManager.GetHistory ~= nil then
+        history =
+            historyManager:GetHistory()
+    end
+
+    if history == nil
+        or #history == 0
+    then
+        self.historyTabText:SetText(
+            "No distribution history."
+        )
+
+        return self
+    end
+
+    local lines = {}
+
+    for index, entry in ipairs(history) do
+        local item =
+            entry.item
+            or entry.itemName
+            or "Unknown Item"
+
+        local winner =
+            entry.winner
+            or entry.winnerName
+            or "No winner"
+
+        table.insert(
+            lines,
+            tostring(index)
+                .. ". "
+                .. tostring(item)
+                .. " -> "
+                .. tostring(winner)
+        )
+    end
+
+    self.historyTabText:SetText(
+        table.concat(
+            lines,
+            "\n"
+        )
     )
 
-    panel.nextButton:SetScript(
-        "OnClick",
-        function()
-            panel.offset =
-                panel.offset
-                + panel.pageSize
-
-            refresh()
-        end
-    )
-
-    refresh()
-
-    return panel
+    return self
 end
 
-function MainWindow.Create()
-    if addon.UI.MainWindow ~= nil then
-        return addon.UI.MainWindow
+function MainWindow:UpdateSettings()
+    local configManager =
+        getConfigManager()
+
+    if configManager == nil then
+        self.settingsTabText:SetText(
+            "Configuration manager is not available."
+        )
+
+        return self
     end
+
+    self.settingsTabText:SetText(
+        "General and loot-system settings.\n\n"
+        .. "Configuration is managed by the "
+        .. "NinjaLoot configuration system."
+    )
+
+    return self
+end
+
+function MainWindow:Refresh()
+    self:UpdateRaid()
+    self:UpdateLoot()
+    self:UpdateHistory()
+    self:UpdateSettings()
+
+    return self
+end
+
+function MainWindow:UpdateTimer()
+    local sessionManager =
+        getSessionManager()
+
+    local session = nil
+
+    if sessionManager ~= nil then
+        session =
+            sessionManager:GetActive()
+    end
+
+    self.sessionPanel.timer:Update(
+        session
+    )
+
+    return self
+end
+
+function MainWindow:Show()
+    self.frame:Show()
+
+    return self
+end
+
+function MainWindow:Hide()
+    self.frame:Hide()
+
+    return self
+end
+
+function MainWindow:IsShown()
+    return self.frame:IsShown()
+end
+
+function MainWindow:GetFrame()
+    return self.frame
+end
+
+local function CreateMainWindow()
+    if UI.mainWindow ~= nil then
+        return UI.mainWindow
+    end
+
+    local self =
+        setmetatable({}, MainWindow)
+
+    local constants =
+        UI.Constants.MainWindow
 
     local frame = CreateFrame(
         "Frame",
-        "NinjaLootMainFrame",
+        "NinjaLootMainWindow",
         UIParent
     )
 
     frame:SetSize(
-        Constants.Size.Width,
-        Constants.Size.Height
+        constants.Size.Width,
+        constants.Size.Height
     )
 
     frame:SetPoint(
         "CENTER"
     )
 
+    frame:SetMovable(true)
+
+    self.frame = frame
+
+    self:CreateTitle()
+    self:CreateCloseButton()
+    self:CreateTabs()
+    self:CreateContent()
+    self:CreateTabsContent()
+
+    self:SelectTab(
+        constants.Tabs.Raid
+    )
+
+    self:Refresh()
+
     frame:Hide()
 
-    frame.closeButton =
-        addon.UI.Components.CreateCloseButton(
-            frame
-        )
+    UI.mainWindow = self
 
-    frame.tabs = {}
-
-    frame.generalPanel =
-        createGeneralPanel(frame)
-
-    frame.lootPanel =
-        createLootPanel(frame)
-
-    frame.historyPanel =
-        createHistoryPanel(frame)
-
-    frame.tabs.general =
-        createTab(
-            frame,
-            "NinjaLootGeneralTab",
-            Constants.Tabs.General
-        )
-
-    frame.tabs.loot =
-        createTab(
-            frame,
-            "NinjaLootLootTab",
-            Constants.Tabs.Loot
-        )
-
-    frame.tabs.history =
-        createTab(
-            frame,
-            "NinjaLootHistoryTab",
-            Constants.Tabs.History
-        )
-
-    local function showTab(
-        tabName
-    )
-        frame.generalPanel:Hide()
-        frame.lootPanel:Hide()
-        frame.historyPanel:Hide()
-
-        if tabName == "general" then
-            frame.generalPanel:Show()
-        elseif tabName == "loot" then
-            frame.lootPanel:Show()
-        elseif tabName == "history" then
-            frame.historyPanel:Show()
-        end
-    end
-
-    frame.tabs.general:SetScript(
-        "OnClick",
-        function()
-            showTab("general")
-        end
-    )
-
-    frame.tabs.loot:SetScript(
-        "OnClick",
-        function()
-            showTab("loot")
-        end
-    )
-
-    frame.tabs.history:SetScript(
-        "OnClick",
-        function()
-            showTab("history")
-        end
-    )
-
-    showTab("general")
-
-    addon.UI.MainWindow = frame
-
-    return frame
+    return self
 end
 
-addon.UI.CreateMainWindow =
-    MainWindow.Create
+UI.CreateMainWindow =
+    CreateMainWindow
+
+UI.MainWindow =
+    MainWindow

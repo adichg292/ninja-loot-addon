@@ -1,7 +1,51 @@
 local frames = {}
 local eventFrames = {}
 
-local function createFrameMethods(frame)
+local function createFontStringMethods(
+    fontString
+)
+    function fontString:SetPoint(
+        point,
+        relativeTo,
+        relativePoint,
+        offsetX,
+        offsetY
+    )
+        self.point = point
+        self.relativeTo = relativeTo
+        self.relativePoint = relativePoint
+        self.offsetX = offsetX
+        self.offsetY = offsetY
+    end
+
+    function fontString:GetPoint()
+        return self.point
+    end
+
+    function fontString:SetText(
+        text
+    )
+        self.text = text
+    end
+
+    function fontString:GetText()
+        return self.text
+    end
+
+    function fontString:SetJustifyH(
+        justifyH
+    )
+        self.justifyH = justifyH
+    end
+
+    function fontString:GetParent()
+        return self.parent
+    end
+end
+
+local function createFrameMethods(
+    frame
+)
     function frame:SetSize(
         width,
         height
@@ -56,6 +100,32 @@ local function createFrameMethods(frame)
 
     function frame:GetText()
         return self.text
+    end
+
+    function frame:CreateFontString(
+        name,
+        layer,
+        template
+    )
+        local fontString = {
+            name = name,
+            layer = layer,
+            template = template,
+            parent = self,
+            text = nil,
+            point = nil,
+            relativeTo = nil,
+            relativePoint = nil,
+            offsetX = 0,
+            offsetY = 0,
+            justifyH = nil,
+        }
+
+        createFontStringMethods(
+            fontString
+        )
+
+        return fontString
     end
 
     function frame:Show()
@@ -211,6 +281,10 @@ local function createFrameMethods(frame)
     function frame:StopMovingOrSizing()
         self.moving = false
     end
+end
+
+function time()
+    return os.time()
 end
 
 function CreateFrame(

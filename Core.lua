@@ -11,6 +11,18 @@ local eventFrame = CreateFrame(
 
 addon.Events.Frame = eventFrame
 
+local function getTimestamp()
+    if GetServerTime ~= nil then
+        return GetServerTime()
+    end
+
+    if time ~= nil then
+        return time()
+    end
+
+    return 0
+end
+
 local function initializePersistence()
     if addon.sessionPersistence == nil then
         addon.sessionPersistence =
@@ -66,18 +78,67 @@ local function initializeLootManager()
         )
 end
 
-local function initializeAwardService()
-    if addon.awardService ~= nil then
-        return
+local function initializeUI()
+    if addon.uiManager == nil then
+        addon.uiManager =
+            addon.UI.UIManager.New()
     end
 
-    addon.awardService =
-        addon.Loot.Distributions.AwardService.New(
-            addon.lootManager
-        )
+    addon.uiManager:Initialize()
 
-    addon.Loot.Distributions.WoWAwardHandler.Register(
-        addon.awardService
+    addon.lootManager:SetDistributionHandler(
+        function(distribution)
+            addon.uiManager:
+                ShowDistribution(
+                    distribution
+                )
+        end
+    )
+end
+
+local function initializeAwardService()
+    if addon.awardService == nil then
+        addon.awardService =
+            addon.Loot.Distributions.AwardService.New(
+                addon.lootManager
+            )
+
+        addon.Loot.Distributions.WoWAwardHandler.Register(
+            addon.awardService
+        )
+    end
+
+    addon.uiManager:SetAwardHandler(
+        function(distribution)
+            local timestamp =
+                getTimestamp()
+
+            local success =
+                addon.awardService:
+                AwardWinner(
+                    distribution,
+                    addon.Loot.Distributions.Constants
+                        .AwardMethods.LOOT,
+                    timestamp,
+                    timestamp
+                )
+
+            if addon.sessionManager ~= nil then
+                addon.sessionManager:Save()
+            end
+
+            if addon.uiManager ~= nil then
+                addon.uiManager:
+                    UpdateDistribution(
+                        distribution
+                    )
+
+                addon.uiManager:
+                    RefreshMainWindow()
+            end
+
+            return success
+        end
     )
 end
 
@@ -87,6 +148,7 @@ local function initializeAddon()
     initializeSessionManager()
     initializeHistory()
     initializeLootManager()
+    initializeUI()
     initializeAwardService()
 end
 
@@ -213,6 +275,13 @@ local function handleChatSystem(
         addon.Loot.Distributions.Constants
             .RollSources.CHAT
     )
+
+    if addon.uiManager ~= nil then
+        addon.uiManager:
+            UpdateDistribution(
+                match.distribution
+            )
+    end
 
     if addon.sessionManager ~= nil then
         addon.sessionManager:Save()

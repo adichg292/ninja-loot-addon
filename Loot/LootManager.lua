@@ -94,11 +94,31 @@ function LootManager.New(
 
         selectedItem = nil,
         lootOpen = false,
+
+        distributionHandler = nil,
     }, LootManager)
 end
 
 function LootManager:GetSessionManager()
     return self.sessionManager
+end
+
+function LootManager:SetDistributionHandler(
+    handler
+)
+    assert(
+        handler == nil
+        or type(handler) == "function",
+        "Distribution handler must be a function"
+    )
+
+    self.distributionHandler = handler
+
+    return self
+end
+
+function LootManager:GetDistributionHandler()
+    return self.distributionHandler
 end
 
 function LootManager:IsLootOpen()
@@ -439,6 +459,12 @@ function LootManager:StartDistribution(
     )
 
     item:MarkDistributing()
+
+    if self.distributionHandler ~= nil then
+        self.distributionHandler(
+            distribution
+        )
+    end
 
     return distribution
 end

@@ -7,39 +7,20 @@ addon.UI.Constants = {
         Title = "NinjaLoot",
 
         Size = {
-            Width = 600,
-            Height = 420,
-        },
-
-        PanelSize = {
-            Width = 560,
-            Height = 340,
+            Width = 800,
+            Height = 600,
         },
 
         TabSize = {
-            Width = 110,
-            Height = 30,
-        },
-
-        SettingButtonSize = {
-            Width = 360,
-            Height = 30,
-        },
-
-        HistoryRowSize = {
-            Width = 520,
-            Height = 30,
-        },
-
-        HistoryLoadMoreSize = {
-            Width = 160,
+            Width = 120,
             Height = 30,
         },
 
         Tabs = {
-            General = "General",
+            Raid = "Raid",
             Loot = "Loot",
             History = "History",
+            Settings = "Settings",
         },
 
         Buttons = {
@@ -62,9 +43,12 @@ addon.UI.Constants = {
             Notifications = "Notifications",
             NotificationVerbosity = "Notification Verbosity",
             DebugLogging = "Debug Logging",
-            ConfirmDestructiveActions = "Confirm Destructive Actions",
-            ShowDistributionHistory = "Show Distribution History",
-            KeepSessionHistory = "Keep Session History",
+            ConfirmDestructiveActions =
+                "Confirm Destructive Actions",
+            ShowDistributionHistory =
+                "Show Distribution History",
+            KeepSessionHistory =
+                "Keep Session History",
         },
 
         Loot = {
@@ -88,10 +72,14 @@ addon.UI.Constants = {
             },
 
             Placeholder = {
-                EPGP = "EPGP configuration will be added later.",
-                DKP = "DKP configuration will be added later.",
-                LootCouncil = "Loot Council configuration will be added later.",
-                GDKP = "GDKP configuration will be added later.",
+                EPGP =
+                    "EPGP configuration will be added later.",
+                DKP =
+                    "DKP configuration will be added later.",
+                LootCouncil =
+                    "Loot Council configuration will be added later.",
+                GDKP =
+                    "GDKP configuration will be added later.",
             },
         },
 

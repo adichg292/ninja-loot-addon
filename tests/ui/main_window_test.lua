@@ -1,84 +1,89 @@
-local function loadAddonFile(
-    path
-)
-    assert(
-        loadfile(path),
-        "Failed to load " .. path
-    )()
-end
+local addon = {}
 
-loadAddonFile(
-    "Loot/Config/Config.lua"
+local loadConstants = assert(
+    loadfile("UI/Constants.lua")
 )
 
-loadAddonFile(
-    "UI/Constants.lua"
+loadConstants(
+    "NinjaLoot",
+    addon
 )
 
-loadAddonFile(
-    "UI/Components/Button.lua"
+local loadButton = assert(
+    loadfile("UI/Components/Button.lua")
 )
 
-loadAddonFile(
-    "UI/Components/CloseButton.lua"
+loadButton(
+    "NinjaLoot",
+    addon
 )
 
-local addon =
-    _G.NinjaLoot
-    or _G.NinjaLootAddon
-
-assert(
-    addon ~= nil,
-    "NinjaLoot addon is not initialized"
+local loadCloseButton = assert(
+    loadfile("UI/Components/CloseButton.lua")
 )
 
-addon.configManager = {
-    Get = function(
-        self,
-        path
-    )
-        local defaults =
-            addon.Loot.Config.Config.GetDefaults()
+loadCloseButton(
+    "NinjaLoot",
+    addon
+)
 
-        local current =
-            defaults
+local loadSessionTimer = assert(
+    loadfile("UI/Sessions/SessionTimer.lua")
+)
 
-        for part in string.gmatch(
-            path,
-            "[^%.]+"
-        ) do
-            current = current[part]
-        end
+loadSessionTimer(
+    "NinjaLoot",
+    addon
+)
 
-        return current
-    end,
+local loadPlayerList = assert(
+    loadfile("UI/Sessions/PlayerList.lua")
+)
 
-    Set = function()
-    end,
-}
+loadPlayerList(
+    "NinjaLoot",
+    addon
+)
 
-addon.historyManager = {
-    GetPage = function()
-        return {}
-    end,
+local loadSessionPanel = assert(
+    loadfile("UI/Sessions/SessionPanel.lua")
+)
 
-    GetTotalCount = function()
-        return 0
-    end,
-}
+loadSessionPanel(
+    "NinjaLoot",
+    addon
+)
 
-loadAddonFile(
-    "UI/MainWindow.lua"
+local loadBossPanel = assert(
+    loadfile("UI/Bosses/BossPanel.lua")
+)
+
+loadBossPanel(
+    "NinjaLoot",
+    addon
+)
+
+local loadLootList = assert(
+    loadfile("UI/Loot/LootList.lua")
+)
+
+loadLootList(
+    "NinjaLoot",
+    addon
+)
+
+local loadMainWindow = assert(
+    loadfile("UI/MainWindow.lua")
+)
+
+loadMainWindow(
+    "NinjaLoot",
+    addon
 )
 
 assert(
     addon.UI ~= nil,
-    "addon.UI was not created"
-)
-
-assert(
-    addon.UI.Constants ~= nil,
-    "addon.UI.Constants was not created"
+    "UI namespace was not created"
 )
 
 assert(
@@ -86,172 +91,168 @@ assert(
     "CreateMainWindow was not created"
 )
 
-assert(
-    addon.UI.Components ~= nil,
-    "addon.UI.Components was not created"
-)
-
-local constants =
-    addon.UI.Constants.MainWindow
-
-local frame =
+local firstWindow =
     addon.UI.CreateMainWindow()
 
 assert(
-    frame ~= nil,
-    "MainWindow.Create did not return a frame"
+    firstWindow ~= nil,
+    "Main window was not created"
 )
 
 assert(
-    frame == addon.UI.MainWindow,
-    "MainWindow was not stored on addon.UI.MainWindow"
+    firstWindow.frame ~= nil,
+    "Main window frame was not created"
 )
 
 assert(
-    frame:GetWidth()
-    == constants.Size.Width,
-    "MainWindow width does not match Constants"
+    firstWindow.frame:GetWidth() == 800,
+    "Main window width is incorrect"
 )
 
 assert(
-    frame:GetHeight()
-    == constants.Size.Height,
-    "MainWindow height does not match Constants"
+    firstWindow.frame:GetHeight() == 600,
+    "Main window height is incorrect"
 )
 
 assert(
-    frame.closeButton ~= nil,
-    "MainWindow closeButton was not created"
+    firstWindow.title ~= nil,
+    "Main window title was not created"
 )
 
 assert(
-    frame.tabs ~= nil,
-    "MainWindow tabs were not created"
+    firstWindow.title:GetText()
+    == "NinjaLoot",
+    "Main window title is incorrect"
 )
 
 assert(
-    frame.tabs.general ~= nil,
-    "General tab was not created"
+    firstWindow.closeButton ~= nil,
+    "Main window close button was not created"
 )
 
 assert(
-    frame.tabs.loot ~= nil,
+    firstWindow.tabs ~= nil,
+    "Main window tabs were not created"
+)
+
+assert(
+    firstWindow.tabs.Raid ~= nil,
+    "Raid tab was not created"
+)
+
+assert(
+    firstWindow.tabs.Loot ~= nil,
     "Loot tab was not created"
 )
 
 assert(
-    frame.tabs.history ~= nil,
+    firstWindow.tabs.History ~= nil,
     "History tab was not created"
 )
 
 assert(
-    frame.tabs.general:GetText()
-    == constants.Tabs.General,
-    "General tab text does not match Constants"
+    firstWindow.tabs.Settings ~= nil,
+    "Settings tab was not created"
 )
 
 assert(
-    frame.tabs.loot:GetText()
-    == constants.Tabs.Loot,
-    "Loot tab text does not match Constants"
+    firstWindow.tabPanels ~= nil,
+    "Main window tab panels were not created"
 )
 
 assert(
-    frame.tabs.history:GetText()
-    == constants.Tabs.History,
-    "History tab text does not match Constants"
+    firstWindow.tabPanels.Raid ~= nil,
+    "Raid tab panel was not created"
 )
 
 assert(
-    frame.generalPanel ~= nil,
-    "General panel was not created"
+    firstWindow.tabPanels.Loot ~= nil,
+    "Loot tab panel was not created"
 )
 
 assert(
-    frame.lootPanel ~= nil,
-    "Loot panel was not created"
+    firstWindow.tabPanels.History ~= nil,
+    "History tab panel was not created"
 )
 
 assert(
-    frame.historyPanel ~= nil,
-    "History panel was not created"
+    firstWindow.tabPanels.Settings ~= nil,
+    "Settings tab panel was not created"
 )
 
 assert(
-    frame:IsShown() == false,
-    "MainWindow should initially be hidden"
+    firstWindow:GetActiveTab()
+    == "Raid",
+    "Raid should be the initial active tab"
 )
 
 assert(
-    frame.generalPanel:IsShown() == true,
-    "General panel should initially be shown"
+    firstWindow:IsShown() == false,
+    "Main window should start hidden"
 )
 
-assert(
-    frame.lootPanel:IsShown() == false,
-    "Loot panel should initially be hidden"
-)
-
-assert(
-    frame.historyPanel:IsShown() == false,
-    "History panel should initially be hidden"
-)
-
-frame.tabs.loot:Click()
-
-assert(
-    frame.generalPanel:IsShown() == false,
-    "General panel should be hidden after selecting Loot"
-)
-
-assert(
-    frame.lootPanel:IsShown() == true,
-    "Loot panel should be shown after selecting Loot"
-)
-
-assert(
-    frame.historyPanel:IsShown() == false,
-    "History panel should remain hidden after selecting Loot"
-)
-
-frame.tabs.history:Click()
-
-assert(
-    frame.generalPanel:IsShown() == false,
-    "General panel should remain hidden after selecting History"
-)
-
-assert(
-    frame.lootPanel:IsShown() == false,
-    "Loot panel should be hidden after selecting History"
-)
-
-assert(
-    frame.historyPanel:IsShown() == true,
-    "History panel should be shown after selecting History"
-)
-
-frame.tabs.general:Click()
-
-assert(
-    frame.generalPanel:IsShown() == true,
-    "General panel should be shown after selecting General"
-)
-
-assert(
-    frame.lootPanel:IsShown() == false,
-    "Loot panel should be hidden after selecting General"
-)
-
-assert(
-    frame.historyPanel:IsShown() == false,
-    "History panel should be hidden after selecting General"
-)
-
-local secondFrame =
+local secondWindow =
     addon.UI.CreateMainWindow()
 
 assert(
-    secondFrame == frame,
-    "CreateMainWindow should return the existing MainWindow"
+    secondWindow == firstWindow,
+    "CreateMainWindow should return the existing window"
+)
+
+firstWindow:Show()
+
+assert(
+    firstWindow:IsShown() == true,
+    "Main window should be visible after Show"
+)
+
+firstWindow.tabs.Loot:Click()
+
+assert(
+    firstWindow:GetActiveTab()
+    == "Loot",
+    "Loot tab was not activated"
+)
+
+assert(
+    firstWindow.tabPanels.Loot:IsShown()
+    == true,
+    "Loot panel should be visible"
+)
+
+assert(
+    firstWindow.tabPanels.Raid:IsShown()
+    == false,
+    "Raid panel should be hidden"
+)
+
+firstWindow.tabs.History:Click()
+
+assert(
+    firstWindow:GetActiveTab()
+    == "History",
+    "History tab was not activated"
+)
+
+firstWindow.tabs.Settings:Click()
+
+assert(
+    firstWindow:GetActiveTab()
+    == "Settings",
+    "Settings tab was not activated"
+)
+
+firstWindow.tabs.Raid:Click()
+
+assert(
+    firstWindow:GetActiveTab()
+    == "Raid",
+    "Raid tab was not activated"
+)
+
+firstWindow:Hide()
+
+assert(
+    firstWindow:IsShown() == false,
+    "Main window should be hidden after Hide"
 )

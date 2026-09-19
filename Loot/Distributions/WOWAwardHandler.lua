@@ -1,72 +1,127 @@
 local addonName, addon = ...
 
 addon.Loot = addon.Loot or {}
-addon.Loot.Distributions = addon.Loot.Distributions or {}
+addon.Loot.Distributions =
+    addon.Loot.Distributions or {}
 
 local Constants =
     addon.Loot.Distributions.Constants
 
 local WoWAwardHandler = {}
 
-local function getRecipientName(distribution)
+local function assertDistribution(
+    distribution
+)
+    assert(
+        distribution ~= nil,
+        "Distribution is required"
+    )
+
+    assert(
+        distribution.GetItem ~= nil,
+        "Distribution item is required"
+    )
+
+    assert(
+        distribution.GetWinner ~= nil,
+        "Distribution winner is required"
+    )
+end
+
+local function getLootSlot(
+    distribution
+)
+    local item =
+        distribution:GetItem()
+
+    assert(
+        item ~= nil,
+        "Distribution item is required"
+    )
+
+    assert(
+        item.GetLootSlot ~= nil,
+        "Item loot slot is required"
+    )
+
+    local lootSlot =
+        item:GetLootSlot()
+
+    assert(
+        lootSlot ~= nil,
+        "Item loot slot is required"
+    )
+
+    return lootSlot
+end
+
+local function getWinnerName(
+    distribution
+)
     local winner =
         distribution:GetWinner()
 
-    if winner == nil then
-        return nil
-    end
+    assert(
+        winner ~= nil,
+        "Distribution winner is required"
+    )
 
-    return winner:GetName()
+    assert(
+        winner.GetName ~= nil,
+        "Winner name is required"
+    )
+
+    local winnerName =
+        winner:GetName()
+
+    assert(
+        winnerName ~= nil
+        and winnerName ~= "",
+        "Winner name is required"
+    )
+
+    return winnerName
 end
 
 function WoWAwardHandler.AwardLoot(
     distribution
 )
-    assert(
-        distribution ~= nil,
-        "Distribution is required"
+    assertDistribution(
+        distribution
     )
 
-    local recipientName =
-        getRecipientName(distribution)
+    local lootSlot =
+        getLootSlot(
+            distribution
+        )
 
-    if recipientName == nil then
-        return false, "No winner selected"
-    end
+    local winnerName =
+        getWinnerName(
+            distribution
+        )
 
-    if type(LootSlot) ~= "function" then
-        return false, "WoW loot API is unavailable"
-    end
+    assert(
+        GiveMasterLoot ~= nil,
+        "GiveMasterLoot is not available"
+    )
 
-    if type(GetLootSlotType) ~= "function" then
-        return false, "WoW loot slot API is unavailable"
-    end
+    GiveMasterLoot(
+        lootSlot,
+        winnerName
+    )
 
-    return false,
-        "Direct loot assignment requires active WoW loot context"
+    return true
 end
 
 function WoWAwardHandler.Trade(
     distribution
 )
-    assert(
-        distribution ~= nil,
-        "Distribution is required"
+    assertDistribution(
+        distribution
     )
 
-    local recipientName =
-        getRecipientName(distribution)
-
-    if recipientName == nil then
-        return false, "No winner selected"
-    end
-
-    if type(InitiateTrade) ~= "function" then
-        return false, "WoW trade API is unavailable"
-    end
-
     return false,
-        "Trade requires an active WoW trade context"
+        "Trade award is not implemented"
 end
 
 function WoWAwardHandler.Register(

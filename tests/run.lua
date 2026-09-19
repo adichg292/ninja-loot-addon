@@ -118,8 +118,20 @@ local tests = {
 
     "tests/ui/button_test.lua",
     "tests/ui/close_button_test.lua",
-    "tests/ui/main_window_test.lua",
     "tests/ui/confirm_dialog_test.lua",
+
+    "tests/ui/sessions/session_timer_test.lua",
+    "tests/ui/sessions/player_list_test.lua",
+    "tests/ui/sessions/session_panel_test.lua",
+
+    "tests/ui/bosses/boss_panel_test.lua",
+
+    "tests/ui/loot/loot_list_test.lua",
+
+    "tests/ui/distribution/ml_loot_window_test.lua",
+
+    "tests/ui/ui_manager_test.lua",
+    "tests/ui/main_window_test.lua",
 }
 
 local failures = {}

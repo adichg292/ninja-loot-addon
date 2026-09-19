@@ -250,3 +250,243 @@ assert(
     not missingHandlerSuccess,
     "Award without a handler should be rejected"
 )
+
+local winnerItem =
+    Item.New("Winner Item")
+
+local winnerDistribution =
+    Distribution.New(
+        winnerItem,
+        boss,
+        {
+            playerOne,
+            playerTwo,
+        },
+        playerOne
+    )
+
+winnerDistribution:Respond(
+    playerOne,
+    Constants.Responses.NEED
+)
+
+winnerDistribution:RegisterRoll(
+    playerOne,
+    40,
+    Constants.RollSources.NINJALOOT
+)
+
+winnerDistribution:Respond(
+    playerTwo,
+    Constants.Responses.NEED
+)
+
+winnerDistribution:RegisterRoll(
+    playerTwo,
+    90,
+    Constants.RollSources.NINJALOOT
+)
+
+assert(
+    winnerDistribution:IsAwardPending(),
+    "Winner distribution should wait for award"
+)
+
+assert(
+    winnerDistribution:GetWinner() == nil,
+    "Winner should not be selected before AwardWinner"
+)
+
+local winnerHandlerCalled = false
+
+local winnerService =
+    AwardService.New()
+
+winnerService:RegisterHandler(
+    Constants.AwardMethods.LOOT,
+    function(receivedDistribution)
+        winnerHandlerCalled = true
+
+        assert(
+            receivedDistribution
+            == winnerDistribution,
+            "AwardWinner should pass the correct distribution"
+        )
+
+        return true
+    end
+)
+
+local winnerSuccess =
+    winnerService:AwardWinner(
+        winnerDistribution,
+        Constants.AwardMethods.LOOT,
+        300,
+        301
+    )
+
+assert(
+    winnerSuccess,
+    "AwardWinner should succeed"
+)
+
+assert(
+    winnerHandlerCalled,
+    "AwardWinner should invoke the registered handler"
+)
+
+assert(
+    winnerDistribution:GetWinner()
+        == playerTwo,
+    "AwardWinner should use the suggested winner"
+)
+
+assert(
+    winnerDistribution:GetSelectedRoll()
+        == 90,
+    "AwardWinner should preserve the winning roll"
+)
+
+assert(
+    winnerDistribution:IsAwarded(),
+    "AwardWinner should transition distribution to awarded state"
+)
+
+assert(
+    winnerDistribution:IsResult(),
+    "AwardWinner should enter result phase"
+)
+
+assert(
+    winnerDistribution:GetAward().state
+        == Constants.AwardStates.SUCCESS,
+    "AwardWinner should record successful award"
+)
+
+local duplicateSuccess =
+    pcall(function()
+        winnerService:Award(
+            winnerDistribution,
+            Constants.AwardMethods.LOOT,
+            302
+        )
+    end)
+
+assert(
+    not duplicateSuccess,
+    "Successful distribution must reject a second award"
+)
+
+local noWinnerItem =
+    Item.New("No Winner Item")
+
+local noWinnerDistribution =
+    Distribution.New(
+        noWinnerItem,
+        boss,
+        {
+            playerOne,
+            playerTwo,
+        },
+        playerOne
+    )
+
+local noWinnerService =
+    AwardService.New()
+
+noWinnerService:RegisterHandler(
+    Constants.AwardMethods.LOOT,
+    function()
+        return true
+    end
+)
+
+local noWinnerSuccess =
+    pcall(function()
+        noWinnerService:AwardWinner(
+            noWinnerDistribution,
+            Constants.AwardMethods.LOOT,
+            400,
+            401
+        )
+    end)
+
+assert(
+    not noWinnerSuccess,
+    "AwardWinner should reject a distribution that is still rolling"
+)
+
+local unavailableItem =
+    Item.New("Unavailable Item")
+
+local unavailableDistribution =
+    Distribution.New(
+        unavailableItem,
+        boss,
+        {
+            playerOne,
+            playerTwo,
+        },
+        playerOne
+    )
+
+unavailableDistribution:Respond(
+    playerOne,
+    Constants.Responses.NEED
+)
+
+unavailableDistribution:RegisterRoll(
+    playerOne,
+    80,
+    Constants.RollSources.NINJALOOT
+)
+
+unavailableDistribution:Respond(
+    playerTwo,
+    Constants.Responses.NEED
+)
+
+unavailableDistribution:RegisterRoll(
+    playerTwo,
+    90,
+    Constants.RollSources.NINJALOOT
+)
+
+unavailableDistribution:SelectWinner(
+    playerTwo,
+    90,
+    500
+)
+
+local unavailableLootManager = {
+    VerifyDistributionItem = function()
+        return false,
+            "Item is no longer available"
+    end,
+}
+
+local unavailableService =
+    AwardService.New(
+        unavailableLootManager
+    )
+
+unavailableService:RegisterHandler(
+    Constants.AwardMethods.LOOT,
+    function()
+        return true
+    end
+)
+
+local unavailableSuccess =
+    pcall(function()
+        unavailableService:Award(
+            unavailableDistribution,
+            Constants.AwardMethods.LOOT,
+            501
+        )
+    end)
+
+assert(
+    not unavailableSuccess,
+    "Unavailable loot must reject award"
+)

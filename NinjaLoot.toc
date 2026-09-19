@@ -37,7 +37,20 @@ Loot/Sessions/SessionPersistence.lua
 Loot/LootManager.lua
 
 UI/Constants.lua
+
 UI/Components/Button.lua
 UI/Components/CloseButton.lua
 UI/Components/ConfirmDialog.lua
+
+UI/Sessions/SessionTimer.lua
+UI/Sessions/PlayerList.lua
+UI/Sessions/SessionPanel.lua
+
+UI/Bosses/BossPanel.lua
+
+UI/Loot/LootList.lua
+
+UI/Distribution/MLLootWindow.lua
+
 UI/MainWindow.lua
+UI/UIManager.lua
