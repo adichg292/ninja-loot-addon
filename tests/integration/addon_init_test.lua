@@ -84,6 +84,10 @@ loadAddonFile(
 )
 
 loadAddonFile(
+    "Loot/Sessions/SessionSync.lua"
+)
+
+loadAddonFile(
     "UI/Constants.lua"
 )
 
@@ -201,3 +205,28 @@ assert(
     addon.Events.Frame.scripts.OnEvent ~= nil,
     "Event frame should have an OnEvent handler"
 )
+
+local previousChatFrame = DEFAULT_CHAT_FRAME
+local debugMessages = {}
+DEFAULT_CHAT_FRAME = {
+    AddMessage = function(_, message)
+        table.insert(debugMessages, message)
+    end,
+}
+local debugEnabled = false
+addon.configManager = {
+    Get = function(_, path)
+        assert(path == "General.DebugLogging")
+        return debugEnabled
+    end,
+}
+assert(not addon.DebugLog("hidden"),
+    "Debug logging should be disabled by default")
+assert(#debugMessages == 0,
+    "Disabled debug logging should not output messages")
+debugEnabled = true
+assert(addon.DebugLog("visible"),
+    "Debug logging should report when a message is written")
+assert(#debugMessages == 1 and string.find(debugMessages[1], "visible"),
+    "Enabled debug logging should write to the chat frame")
+DEFAULT_CHAT_FRAME = previousChatFrame

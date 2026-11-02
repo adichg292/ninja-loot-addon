@@ -18,6 +18,22 @@ local function createFontStringMethods(
         self.offsetY = offsetY
     end
 
+    function fontString:ClearAllPoints()
+        self.point = nil
+        self.relativeTo = nil
+        self.relativePoint = nil
+        self.offsetX = nil
+        self.offsetY = nil
+    end
+
+    function fontString:Show()
+        self.visible = true
+    end
+
+    function fontString:Hide()
+        self.visible = false
+    end
+
     function fontString:GetPoint()
         return self.point
     end
@@ -62,6 +78,14 @@ local function createFrameMethods(
         return self.height
     end
 
+    function frame:SetScale(scale)
+        self.scale = scale
+    end
+
+    function frame:GetScale()
+        return self.scale or 1
+    end
+
     function frame:SetWidth(
         width
     )
@@ -88,6 +112,14 @@ local function createFrameMethods(
         self.offsetY = offsetY
     end
 
+    function frame:ClearAllPoints()
+        self.point = nil
+        self.relativeTo = nil
+        self.relativePoint = nil
+        self.offsetX = nil
+        self.offsetY = nil
+    end
+
     function frame:GetPoint()
         return self.point
     end
@@ -96,6 +128,18 @@ local function createFrameMethods(
         text
     )
         self.text = text
+    end
+
+    function frame:SetAutoFocus(autoFocus)
+        self.autoFocus = autoFocus
+    end
+
+    function frame:SetTextInsets(left, right, top, bottom)
+        self.textInsets = { left, right, top, bottom }
+    end
+
+    function frame:ClearFocus()
+        self.focused = false
     end
 
     function frame:GetText()

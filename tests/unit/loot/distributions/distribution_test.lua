@@ -492,6 +492,14 @@ manualRestart:Award(
     201
 )
 
+Constants.AllowRestartVoting = false
+local voteSucceeded = pcall(function()
+    manualRestart:VoteRestart(playerOne)
+end)
+assert(not voteSucceeded,
+    "Disabled restart voting should reject votes")
+Constants.AllowRestartVoting = true
+
 manualRestart:VoteRestart(playerOne)
 manualRestart:VoteRestart(playerTwo)
 

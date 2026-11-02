@@ -171,8 +171,10 @@ local loot = {
     },
 }
 
+local lootCount = 2
+
 _G.GetNumLootItems = function()
-    return 2
+    return lootCount
 end
 
 _G.GetLootSlotInfo = function(
@@ -497,4 +499,60 @@ local emptyLoot =
 assert(
     #emptyLoot == 0,
     "Loot should be ignored without a current boss"
+)
+
+loot[1] = {
+    name = "Test Ring",
+    quantity = 1,
+    quality = 4,
+    link = "|Hitem:11111|h[Test Ring]|h",
+    locked = false,
+    isQuestItem = false,
+    questId = nil,
+    isActive = true,
+    hasItem = true,
+}
+
+loot[2] = {
+    name = "Test Necklace",
+    quantity = 1,
+    quality = 4,
+    link = "|Hitem:22222|h[Test Necklace]|h",
+    locked = false,
+    isQuestItem = false,
+    questId = nil,
+    isActive = true,
+    hasItem = true,
+}
+
+lootCount = 2
+lootManager:ReadLoot()
+
+local ring = boss:GetItem(3)
+local necklace = boss:GetItem(4)
+
+assert(
+    necklace:GetLootSlot() == 2,
+    "Necklace should initially be recorded in slot two"
+)
+
+lootManager:HandleLootSlotCleared(1)
+loot[1] = loot[2]
+loot[2] = nil
+lootCount = 1
+lootManager:HandleLootSlotChanged(1)
+
+assert(
+    necklace:GetLootSlot() == 1,
+    "Existing loot item should update to its shifted slot"
+)
+
+assert(
+    boss:GetItems():Count() == 4,
+    "Refreshing shifted loot should not create a duplicate item"
+)
+
+assert(
+    ring:IsUnavailable(),
+    "Cleared loot should remain unavailable after another item shifts"
 )

@@ -385,6 +385,29 @@ function ConfigManager:ApplyRuntimeSettings()
     Constants.ResultTimerSeconds =
         roundRobin.ResultPeriodSeconds
 
+    Constants.AllowRestartVoting =
+        roundRobin.AllowRestartVoting
+
+    if addon.sessionManager ~= nil
+        and type(self.config.General.KeepSessionHistoryDays) == "number"
+    then
+        local now = GetServerTime ~= nil and GetServerTime()
+            or (time ~= nil and time() or nil)
+        if now ~= nil then
+            addon.sessionManager:PruneHistoryBefore(
+                now - self.config.General.KeepSessionHistoryDays * 86400
+            )
+        end
+    end
+
+    if addon.uiManager ~= nil
+        and addon.uiManager.SetMinimapButtonVisible ~= nil
+    then
+        addon.uiManager:SetMinimapButtonVisible(
+            self.config.General.MinimapButton
+        )
+    end
+
     return self
 end
 

@@ -1,4 +1,6 @@
 local addonName, addon = ...
+local originalGiveMasterLoot = _G.GiveMasterLoot
+local originalGetMasterLootCandidate = _G.GetMasterLootCandidate
 
 addon.Loot = addon.Loot or {}
 addon.Loot.Items = addon.Loot.Items or {}
@@ -30,6 +32,7 @@ loadAddonFile("Loot/Distributions/DistributionPhase.lua")
 loadAddonFile("Loot/Distributions/Distribution.lua")
 loadAddonFile("Loot/Distributions/AwardService.lua")
 loadAddonFile("Loot/Distributions/WoWAwardHandler.lua")
+loadAddonFile("Loot/Distributions/TradeAwardHandler.lua")
 
 local Constants =
     addon.Loot.Distributions.Constants
@@ -51,6 +54,9 @@ local AwardService =
 
 local WoWAwardHandler =
     addon.Loot.Distributions.WoWAwardHandler
+
+local TradeAwardHandler =
+    addon.Loot.Distributions.TradeAwardHandler
 
 assert(
     addon.Loot.Items.ItemManager ~= nil,
@@ -128,6 +134,8 @@ WoWAwardHandler.Register(
     service
 )
 
+TradeAwardHandler.Register(service)
+
 assert(
     service:HasHandler(
         Constants.AwardMethods.LOOT
@@ -139,18 +147,27 @@ assert(
     service:HasHandler(
         Constants.AwardMethods.TRADE
     ),
-    "WoW TRADE handler should be registered"
+    "Trade award handler should be registered"
 )
 
 local givenSlot = nil
-local givenPlayer = nil
+local givenCandidateIndex = nil
+
+_G.GetMasterLootCandidate = function(index)
+    local candidates = {
+        [1] = "PlayerOne",
+        [2] = "PlayerTwo",
+    }
+
+    return candidates[index]
+end
 
 _G.GiveMasterLoot = function(
     slot,
-    playerName
+    candidateIndex
 )
     givenSlot = slot
-    givenPlayer = playerName
+    givenCandidateIndex = candidateIndex
 end
 
 local success =
@@ -162,8 +179,8 @@ local success =
     )
 
 assert(
-    success,
-    "WoW loot award should succeed"
+    success == nil,
+    "WoW loot award should remain pending until the slot is cleared"
 )
 
 assert(
@@ -172,8 +189,8 @@ assert(
 )
 
 assert(
-    givenPlayer == "PlayerTwo",
-    "Master loot should receive the winner name"
+    givenCandidateIndex == 2,
+    "Master loot should receive the winner candidate index"
 )
 
 assert(
@@ -189,14 +206,87 @@ assert(
 
 assert(
     distribution:GetAward().state
-        == Constants.AwardStates.SUCCESS,
-    "Successful WoW award should be recorded"
+        == Constants.AwardStates.PENDING,
+    "WoW award should not report success before confirmation"
 )
 
 assert(
     distribution:GetAward().method
         == Constants.AwardMethods.LOOT,
     "Award method should be recorded"
+)
+
+assert(
+    WoWAwardHandler.ConfirmLootSlotCleared(7)
+        == distribution,
+    "Clearing the matching loot slot should confirm the award"
+)
+
+assert(
+    distribution:GetAward().state
+        == Constants.AwardStates.SUCCESS,
+    "Confirmed WoW award should be recorded as successful"
+)
+
+local stalledItem = Item.New("Stalled Award Item", 24680,
+    "|Hitem:24680|h[Stalled Award Item]|h")
+stalledItem:SetLootSlot(8)
+boss:AddItem(stalledItem)
+local stalledDistribution = Distribution.New(
+    stalledItem,
+    boss,
+    { playerOne, playerTwo },
+    playerOne
+)
+stalledDistribution:Respond(playerOne, Constants.Responses.NEED)
+stalledDistribution:RegisterRoll(playerOne, 60, Constants.RollSources.NINJALOOT)
+stalledDistribution:Respond(playerTwo, Constants.Responses.NEED)
+stalledDistribution:RegisterRoll(playerTwo, 40, Constants.RollSources.NINJALOOT)
+
+assert(service:AwardWinner(stalledDistribution, Constants.AwardMethods.LOOT, 300, 301) == nil,
+    "Unconfirmed master loot should remain pending")
+local failedAwards = WoWAwardHandler.FailPendingAwards("Loot window closed")
+assert(#failedAwards == 1 and failedAwards[1] == stalledDistribution,
+    "Closing the loot window should fail outstanding master loot awards")
+assert(stalledDistribution:IsAwardFailed(),
+    "Unconfirmed master loot should be marked failed")
+
+assert(service:RetryAward(stalledDistribution, Constants.AwardMethods.LOOT, 302, 303) == nil,
+    "Failed award should be retryable")
+assert(stalledDistribution:GetAward().state == Constants.AwardStates.PENDING,
+    "Retry should wait for a new master loot confirmation")
+WoWAwardHandler.FailPendingAwards("Test cleanup")
+
+_G.GiveMasterLoot = function()
+    error("Master loot API failure")
+end
+local apiFailure = service:RetryAward(
+    stalledDistribution,
+    Constants.AwardMethods.LOOT,
+    304,
+    305
+)
+assert(apiFailure == false and stalledDistribution:IsAwardFailed(),
+    "Synchronous master loot errors should fail cleanly")
+assert(#WoWAwardHandler.FailPendingAwards("Unexpected pending award") == 0,
+    "Synchronous failure should clear its pending slot")
+
+_G.GetMasterLootCandidate = originalGetMasterLootCandidate
+_G.GiveMasterLoot = originalGiveMasterLoot
+
+local missingCandidateSuccess,
+    missingCandidateError =
+    WoWAwardHandler.AwardLoot(distribution)
+
+assert(
+    not missingCandidateSuccess,
+    "AwardLoot should fail when the winner is not an eligible candidate"
+)
+
+assert(
+    missingCandidateError
+        == "Winner is not an eligible master loot candidate",
+    "Missing candidate should report a clear error"
 )
 
 local invalidLootSuccess =
@@ -207,31 +297,4 @@ local invalidLootSuccess =
 assert(
     not invalidLootSuccess,
     "AwardLoot should reject nil distribution"
-)
-
-local invalidTradeSuccess =
-    pcall(function()
-        WoWAwardHandler.Trade(nil)
-    end)
-
-assert(
-    not invalidTradeSuccess,
-    "Trade should reject nil distribution"
-)
-
-local tradeSuccess,
-    tradeError =
-    WoWAwardHandler.Trade(
-        distribution
-    )
-
-assert(
-    not tradeSuccess,
-    "Unimplemented trade should fail safely"
-)
-
-assert(
-    tradeError
-        == "Trade award is not implemented",
-    "Trade failure reason is incorrect"
 )

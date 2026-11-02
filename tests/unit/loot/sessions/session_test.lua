@@ -263,6 +263,20 @@ assert(
     "Item should reference its distribution"
 )
 
+session:SetMasterLooter(playerTwo)
+
+assert(
+    session:GetMasterLooter() == playerTwo,
+    "Session should support handing off master looter"
+)
+
+assert(
+    distribution:GetMasterLooter() == playerTwo,
+    "Pending distribution should follow master looter handoff"
+)
+
+session:SetMasterLooter(playerOne)
+
 session:Start(200)
 
 assert(

@@ -30,7 +30,7 @@ function LootList.New(parent)
     )
 
     frame:SetWidth(760)
-    frame:SetHeight(180)
+    frame:SetHeight(400)
 
     local title =
         frame:CreateFontString(
@@ -73,15 +73,26 @@ function LootList.New(parent)
     self.frame = frame
     self.title = title
     self.text = text
+    self.rows = {}
+    self.displayText = "No loot."
 
     return self
 end
 
 function LootList:Update(lootManager)
+    local function showMessage(message)
+        for _, row in ipairs(self.rows) do
+            row.label:Hide()
+            row.button:Hide()
+        end
+
+        self.displayText = message
+        self.text:SetText(message)
+        self.text:Show()
+    end
+
     if lootManager == nil then
-        self.text:SetText(
-            "Loot manager is not available."
-        )
+        showMessage("Loot manager is not available.")
 
         return self
     end
@@ -92,16 +103,16 @@ function LootList:Update(lootManager)
     if items == nil
         or #items == 0
     then
-        self.text:SetText(
-            "No loot."
-        )
+        showMessage("No loot.")
 
         return self
     end
 
     local lines = {}
 
-    for _, item in ipairs(items) do
+    self.text:Hide()
+
+    for index, item in ipairs(items) do
         local state = "UNKNOWN"
 
         if item.GetState ~= nil then
@@ -109,27 +120,87 @@ function LootList:Update(lootManager)
                 item:GetState()
         end
 
-        table.insert(
-            lines,
+        local row = self.rows[index]
+
+        if row == nil then
+            local label = self.frame:CreateFontString(
+                nil,
+                "OVERLAY",
+                "GameFontHighlight"
+            )
+            label:SetJustifyH("LEFT")
+
+            local button = addon.UI.Components.CreateButton(
+                self.frame,
+                nil,
+                130,
+                26
+            )
+
+            row = {
+                label = label,
+                button = button,
+            }
+            self.rows[index] = row
+        end
+
+        row.label:ClearAllPoints()
+        row.label:SetPoint(
+            "TOPLEFT",
+            self.frame,
+            "TOPLEFT",
+            10,
+            -42 - ((index - 1) * 34)
+        )
+        row.label:SetText(
             item:GetName()
                 .. " ["
                 .. tostring(state)
                 .. "]"
         )
+        row.label:Show()
+
+        table.insert(lines, item:GetName() .. " [" .. tostring(state) .. "]")
+
+        row.button:ClearAllPoints()
+        row.button:SetPoint(
+            "TOPRIGHT",
+            self.frame,
+            "TOPRIGHT",
+            -10,
+            -36 - ((index - 1) * 34)
+        )
+
+        local isDistributable = state == "AVAILABLE"
+            or state == "SELECTED"
+
+        if isDistributable
+            and lootManager.StartDistribution ~= nil
+        then
+            row.button:SetText("Distribute")
+            row.button:SetScript("OnClick", function()
+                local distribution = lootManager:StartDistribution(item)
+                self:Update(lootManager)
+                return distribution
+            end)
+            row.button:Show()
+        else
+            row.button:Hide()
+        end
     end
 
-    self.text:SetText(
-        table.concat(
-            lines,
-            "\n"
-        )
-    )
+    for index = #items + 1, #self.rows do
+        self.rows[index].label:Hide()
+        self.rows[index].button:Hide()
+    end
+
+    self.displayText = table.concat(lines, "\n")
 
     return self
 end
 
 function LootList:GetText()
-    return self.text:GetText()
+    return self.displayText
 end
 
 function LootList:GetFrame()

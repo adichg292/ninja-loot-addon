@@ -168,7 +168,11 @@ local bobResponse = {
     end,
 }
 
+local distributionAward = nil
 local distribution = {
+    GetAward = function()
+        return distributionAward
+    end,
     GetItem = function()
         return {
             GetName = function()
@@ -307,6 +311,42 @@ assert(
     "Award button should be hidden while rolling"
 )
 
+local previousUnitName = UnitName
+local previousUnitFullName = UnitFullName
+UnitFullName = nil
+UnitName = function()
+    return "Alice"
+end
+distribution.IsRolling = function() return true end
+distribution.IsRollGraceActive = function() return false end
+distribution.HasPendingRoll = function() return false end
+distribution.GetResponse = function() return nil end
+distribution.GetPhase = function() return "ROLLING" end
+local responseReceived = nil
+window:SetResponseHandler(function(receivedDistribution, response)
+    assert(receivedDistribution == distribution)
+    responseReceived = response
+    return true
+end)
+window:Update()
+assert(window.needButton:IsShown() and window.passButton:IsShown(),
+    "Eligible local participant should see Need and Pass")
+assert(window.needButton:GetScript("OnClick")(), "Need response should succeed")
+assert(responseReceived == "NEED", "Need click should submit NEED")
+assert(window.passButton:GetScript("OnClick")(), "Pass response should succeed")
+assert(responseReceived == "PASS", "Pass click should submit PASS")
+UnitName = previousUnitName
+UnitFullName = previousUnitFullName
+window:SetResponseHandler(nil)
+distribution.GetResponse = function(_, player)
+    if player == alice then return aliceResponse end
+    if player == bob then return bobResponse end
+end
+distribution.GetPhase = function() return "AWARD_PENDING" end
+distribution.IsRolling = nil
+distribution.IsRollGraceActive = nil
+distribution.HasPendingRoll = nil
+
 distribution.GetPhase =
     function()
         return "AWARD_PENDING"
@@ -336,6 +376,18 @@ assert(
         == true,
     "Award button should be visible when award is pending"
 )
+
+local tradeCalled = false
+window:SetTradeHandler(function(receivedDistribution)
+    tradeCalled = true
+    assert(receivedDistribution == distribution)
+    return nil -- Trade remains pending until the trade events confirm it.
+end)
+assert(window.tradeButton:IsShown(),
+    "Trade action should be visible while an award is pending")
+assert(window:Trade() == nil,
+    "Trade action should preserve the pending result")
+assert(tradeCalled, "Trade action should invoke its handler")
 
 distribution.GetWinner =
     function()
@@ -389,6 +441,19 @@ assert(
     "Window award action should invoke handler"
 )
 
+distributionAward = { state = "FAILED" }
+distribution.IsAwardPending = function() return false end
+window:Update()
+assert(window.awardButton:IsShown() and window.tradeButton:IsShown(),
+    "Failed awards should expose retry actions")
+assert(window.awardButton:GetText() == "Retry Loot"
+    and window.tradeButton:GetText() == "Retry Trade",
+    "Failed award actions should be labeled as retries")
+awardCalled = false
+window:Award()
+assert(awardCalled, "Retry action should use the configured award handler")
+distributionAward = { state = "SUCCESS" }
+
 distribution.GetPhase =
     function()
         return "FINAL"
@@ -406,6 +471,8 @@ assert(
         == false,
     "Award button should hide after award completion"
 )
+assert(not window.tradeButton:IsShown(),
+    "Trade action should hide after award completion")
 
 window:Show()
 

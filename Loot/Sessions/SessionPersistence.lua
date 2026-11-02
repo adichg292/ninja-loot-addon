@@ -9,6 +9,10 @@ SessionPersistence.__index = SessionPersistence
 local DATABASE_KEY =
 "NinjaLootDatabase"
 
+local CURRENT_SCHEMA_VERSION = 1
+
+SessionPersistence.SchemaVersion = CURRENT_SCHEMA_VERSION
+
 local function serializePlayer(
     player
 )
@@ -24,6 +28,13 @@ local function serializeItem(
         name = item:GetName(),
         itemId = item:GetId(),
         itemLink = item:GetLink(),
+        lootQuantity = item:GetLootQuantity(),
+        lootQuality = item:GetLootQuality(),
+        lootLocked = item:IsLootLocked(),
+        questLoot = item:IsQuestLoot(),
+        questId = item:GetQuestId(),
+        lootActive = item:IsLootActive(),
+        state = item:GetState(),
     }
 end
 
@@ -79,11 +90,28 @@ local function deserializeItem(
         "Item name is required"
     )
 
-    return addon.Loot.Items.Item.New(
+    local item = addon.Loot.Items.Item.New(
         data.name,
         data.itemId,
         data.itemLink
     )
+
+    if data.lootQuantity ~= nil then
+        item:SetLootQuantity(data.lootQuantity)
+    end
+
+    item:SetLootQuality(data.lootQuality)
+    item:SetLootLocked(data.lootLocked == true)
+    item:SetQuestLoot(data.questLoot == true, data.questId)
+    if data.lootActive ~= nil then
+        item:SetLootActive(data.lootActive)
+    end
+
+    if data.state ~= nil then
+        item:SetState(data.state)
+    end
+
+    return item
 end
 
 local function deserializeBoss(
@@ -182,6 +210,18 @@ local function serializeDistribution(
         phase =
             distribution:GetPhase(),
 
+        elapsed =
+            distribution:GetElapsed(),
+
+        rollParticipants = {},
+        pendingRolls = {},
+
+        rollGraceActive =
+            distribution:IsRollGraceActive(),
+
+        rollGraceElapsed =
+            distribution:GetRollGraceElapsed(),
+
         winner = nil,
         suggestedWinner = nil,
 
@@ -205,6 +245,15 @@ local function serializeDistribution(
 
         award =
             distribution:GetAward(),
+
+        resultFinalized =
+            distribution.resultFinalized,
+
+        finalDecision =
+            distribution:GetFinalDecision(),
+
+        finalDecisionAt =
+            distribution:GetFinalDecisionAt(),
     }
 
     for _, player in ipairs(
@@ -214,6 +263,19 @@ local function serializeDistribution(
             data.participants,
             serializePlayer(player)
         )
+    end
+
+    for _, player in ipairs(
+        distribution:GetRollParticipants()
+    ) do
+        table.insert(
+            data.rollParticipants,
+            serializePlayer(player)
+        )
+
+        if distribution:HasPendingRoll(player) then
+            table.insert(data.pendingRolls, player:GetName())
+        end
     end
 
     local winner =
@@ -252,10 +314,155 @@ local function serializeDistribution(
     data.resultResponses =
         distribution:GetResultResponses()
 
+    if data.award ~= nil then
+        data.award = {
+            state = data.award.state,
+            method = data.award.method,
+            recipient = data.award.recipient ~= nil
+                and serializePlayer(data.award.recipient)
+                or nil,
+            startedAt = data.award.startedAt,
+            completedAt = data.award.completedAt,
+            error = data.award.error,
+        }
+    end
+
     data.attempts =
         distribution:GetAttempts()
 
     return data
+end
+
+local function getSessionPlayer(session, playerData)
+    local player = session:GetPlayer(playerData.name)
+
+    if player == nil then
+        player = deserializePlayer(playerData)
+        session:AddPlayer(player)
+    end
+
+    return player
+end
+
+local function findDistributionItem(session, distributionData)
+    local bossData = distributionData.boss or {}
+    local boss = session:GetBoss(bossData.name)
+    local itemData = distributionData.item
+
+    if boss ~= nil and type(itemData) == "table" then
+        for _, item in ipairs(boss:GetItems():GetAll()) do
+            if (itemData.itemId ~= nil and item:GetId() == itemData.itemId)
+                or (itemData.itemLink ~= nil and item:GetLink() == itemData.itemLink)
+                or item:GetName() == itemData.name
+            then
+                return item, boss
+            end
+        end
+    end
+
+    if boss == nil then
+        boss = deserializeBoss(bossData)
+        session:AddBoss(boss)
+    end
+
+    local item = type(itemData) == "table"
+        and deserializeItem(itemData)
+        or addon.Loot.Items.Item.New(tostring(itemData), nil, nil)
+
+    boss:AddItem(item)
+    return item, boss
+end
+
+local function deserializeDistribution(session, data)
+    local item, boss = findDistributionItem(session, data)
+    local participants = {}
+
+    for _, playerData in ipairs(data.participants or {}) do
+        table.insert(participants, getSessionPlayer(session, playerData))
+    end
+
+    local masterLooter = getSessionPlayer(session, data.masterLooter)
+    local distribution = addon.Loot.Distributions.Distribution.New(
+        item, boss, participants, masterLooter
+    )
+    local playersByName = {}
+
+    for _, player in ipairs(participants) do
+        playersByName[player:GetName()] = player
+    end
+
+    distribution.state = data.state or distribution.state
+    distribution.phaseName = data.phase or distribution.phaseName
+    distribution.phase = nil
+    if distribution.phaseName == "ROLLING" or distribution.phaseName == "RESULT" then
+        distribution.phase = addon.Loot.Distributions.DistributionPhase.New(distribution.phaseName)
+        distribution.phase:Update(math.max(0, data.elapsed or 0))
+    end
+
+    distribution.responses = {}
+    for _, responseData in ipairs(data.responses or {}) do
+        local player = playersByName[responseData.player.name]
+        if player ~= nil then
+            distribution.responses[player:GetName()] = addon.Loot.Distributions.DistributionResponse.New(
+                player,
+                responseData.response,
+                responseData.roll,
+                responseData.rollSource
+            )
+        end
+    end
+
+    distribution.resultResponses = data.resultResponses or {}
+    distribution.winner = data.winner and playersByName[data.winner.name] or nil
+    distribution.suggestedWinner = data.suggestedWinner and playersByName[data.suggestedWinner.name] or nil
+    distribution.selectedRoll = data.selectedRoll
+    distribution.selectedAt = data.selectedAt
+    distribution.awardedAt = data.awardedAt
+    distribution.currentAttempt = data.currentAttempt or 1
+    distribution.restartCount = data.restartCount or 0
+    distribution.rerollCount = data.rerollCount or 0
+    distribution.attempts = data.attempts or distribution.attempts
+    distribution.rollGraceActive = data.rollGraceActive or false
+    distribution.rollGraceElapsed = data.rollGraceElapsed or 0
+    distribution.resultFinalized = data.resultFinalized or false
+    distribution.finalDecision = data.finalDecision
+    distribution.finalDecisionAt = data.finalDecisionAt
+
+    if data.rollParticipants ~= nil then
+        distribution.rollParticipants = {}
+        for _, playerData in ipairs(data.rollParticipants) do
+            local player = playersByName[playerData.name]
+            if player ~= nil then
+                table.insert(distribution.rollParticipants, player)
+            end
+        end
+    end
+
+    distribution.pendingRolls = {}
+    local rollParticipantsByName = {}
+    for _, player in ipairs(distribution.rollParticipants) do
+        rollParticipantsByName[player:GetName()] = player
+    end
+    for _, playerName in ipairs(data.pendingRolls or {}) do
+        if rollParticipantsByName[playerName] ~= nil then
+            distribution.pendingRolls[playerName] = true
+        end
+    end
+
+    if data.award ~= nil then
+        distribution.award = {
+            state = data.award.state,
+            method = data.award.method,
+            recipient = data.award.recipient
+                and playersByName[data.award.recipient.name]
+                or nil,
+            startedAt = data.award.startedAt,
+            completedAt = data.award.completedAt,
+            error = data.award.error,
+        }
+    end
+
+    return distribution
 end
 
 local function serializeSession(
@@ -362,6 +569,16 @@ local function createSessionFromData(
         )
     end
 
+    local restoredMasterLooter =
+        session:GetPlayer(masterLooter:GetName())
+
+    if restoredMasterLooter == nil then
+        restoredMasterLooter = masterLooter
+        session:AddPlayer(restoredMasterLooter)
+    end
+
+    session.masterLooter = restoredMasterLooter
+
     for _, bossData in ipairs(
         data.bosses or {}
     ) do
@@ -383,6 +600,12 @@ local function createSessionFromData(
                 currentBoss
             )
         end
+    end
+
+    for _, distributionData in ipairs(data.distributions or {}) do
+        session:AddDistribution(
+            deserializeDistribution(session, distributionData)
+        )
     end
 
     if data.state == "ACTIVE" then
@@ -426,6 +649,7 @@ end
 function SessionPersistence:Initialize()
     if _G[DATABASE_KEY] == nil then
         _G[DATABASE_KEY] = {
+            schemaVersion = CURRENT_SCHEMA_VERSION,
             config = nil,
             activeSessions = {},
             history = {},
@@ -435,6 +659,47 @@ function SessionPersistence:Initialize()
     self.database =
         _G[DATABASE_KEY]
 
+    local schemaVersion = self.database.schemaVersion
+    if schemaVersion == nil then
+        schemaVersion = 0
+    end
+
+    assert(
+        type(schemaVersion) == "number"
+            and schemaVersion >= 0
+            and schemaVersion % 1 == 0,
+        "Invalid NinjaLoot database schema version"
+    )
+
+    assert(
+        schemaVersion <= CURRENT_SCHEMA_VERSION,
+        "NinjaLoot database was saved by a newer addon version"
+    )
+
+    while schemaVersion < CURRENT_SCHEMA_VERSION do
+        if schemaVersion == 0 then
+            self.database.history = self.database.history or {}
+            self.database.activeSessions =
+                self.database.activeSessions or {}
+
+            local oldSession = self.database.activeSession
+            if oldSession ~= nil
+                and oldSession.sessionId ~= nil
+                and self.database.activeSessions[
+                    oldSession.sessionId
+                ] == nil
+            then
+                self.database.activeSessions[
+                    oldSession.sessionId
+                ] = oldSession
+            end
+
+            self.database.activeSession = nil
+            schemaVersion = 1
+            self.database.schemaVersion = schemaVersion
+        end
+    end
+
     self.database.history =
         self.database.history
         or {}
@@ -443,22 +708,7 @@ function SessionPersistence:Initialize()
         self.database.activeSessions = {}
     end
 
-    if self.database.activeSession ~= nil then
-        local oldSession =
-            self.database.activeSession
-
-        if oldSession.sessionId ~= nil
-            and self.database.activeSessions[
-            oldSession.sessionId
-            ] == nil
-        then
-            self.database.activeSessions[
-            oldSession.sessionId
-            ] = oldSession
-        end
-
-        self.database.activeSession = nil
-    end
+    self.database.schemaVersion = CURRENT_SCHEMA_VERSION
 
     return self
 end
@@ -484,6 +734,8 @@ function SessionPersistence:Save(
         self.database ~= nil,
         "Persistence has not been initialized"
     )
+
+    self.database.schemaVersion = CURRENT_SCHEMA_VERSION
 
     self.database.activeSessions = {}
 
@@ -522,6 +774,7 @@ function SessionPersistence:SaveConfig(
 
     self.database.config =
         config
+    self.database.schemaVersion = CURRENT_SCHEMA_VERSION
 
     return self
 end
@@ -607,6 +860,7 @@ function SessionPersistence:Clear()
     self.database.activeSessions = {}
     self.database.activeSession = nil
     self.database.history = {}
+    self.database.schemaVersion = CURRENT_SCHEMA_VERSION
 
     return self
 end

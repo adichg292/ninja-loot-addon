@@ -85,6 +85,18 @@ assert(
 )
 
 time = function()
+    return 130
+end
+
+timer.frame:GetScript("OnUpdate")(timer.frame, 1)
+
+assert(
+    timer:GetText()
+        == "Session Time: 00:00:30",
+    "Active session timer should tick without a full UI refresh"
+)
+
+time = function()
     return 200
 end
 

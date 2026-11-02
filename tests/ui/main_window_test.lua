@@ -27,6 +27,11 @@ loadCloseButton(
     addon
 )
 
+assert(loadfile("UI/Components/ConfirmDialog.lua"))(
+    "NinjaLoot",
+    addon
+)
+
 local loadSessionTimer = assert(
     loadfile("UI/Sessions/SessionTimer.lua")
 )
@@ -234,12 +239,232 @@ assert(
     "History tab was not activated"
 )
 
+local historyEntries = {}
+for index = 1, 12 do
+    historyEntries[index] = {
+        item = "Item " .. tostring(index),
+        recipient = "Winner " .. tostring(index),
+        boss = "Boss " .. tostring(index),
+        sessionId = "SESSION-" .. tostring(index),
+        awardedAt = 1000 + index,
+    }
+end
+
+addon.historyManager = {
+    GetTotalCount = function()
+        return #historyEntries
+    end,
+
+    GetPage = function(_, offset, limit)
+        local page = {}
+        for index = offset + 1, math.min(offset + limit, #historyEntries) do
+            table.insert(page, historyEntries[index])
+        end
+        return page
+    end,
+}
+
+firstWindow:UpdateHistory()
+assert(
+    string.find(firstWindow.historyTabText:GetText(), "Item 1 -> Winner 1", 1, true) ~= nil,
+    "History should display the item recipient"
+)
+assert(
+    string.find(firstWindow.historyTabText:GetText(), "Boss 1 | SESSION-1", 1, true) ~= nil,
+    "History should display boss and session details"
+)
+assert(
+    firstWindow.historyLoadMoreButton:IsShown(),
+    "History should offer more pages when entries remain"
+)
+
+firstWindow.historyLoadMoreButton:GetScript("OnClick")()
+assert(
+    string.find(firstWindow.historyTabText:GetText(), "Item 12 -> Winner 12", 1, true) ~= nil,
+    "Load More should append the next history page"
+)
+assert(
+    not firstWindow.historyLoadMoreButton:IsShown(),
+    "Load More should hide after the last history page"
+)
+
 firstWindow.tabs.Settings:Click()
 
 assert(
     firstWindow:GetActiveTab()
     == "Settings",
     "Settings tab was not activated"
+)
+
+local settingValues = {
+    ["General.MinimapButton"] = true,
+    ["General.UIScale"] = 1.0,
+    ["General.Notifications"] = true,
+    ["General.NotificationVerbosity"] = "NORMAL",
+    ["General.DebugLogging"] = false,
+    ["General.ConfirmDestructiveActions"] = true,
+    ["General.ShowDistributionHistory"] = true,
+    ["General.KeepSessionHistoryDays"] = 30,
+    ["Loot.RoundRobin.RollPeriodSeconds"] = 20,
+    ["Loot.RoundRobin.RollGracePeriodSeconds"] = 1,
+    ["Loot.RoundRobin.ResultPeriodSeconds"] = 10,
+    ["Loot.RoundRobin.AnnounceMLActions"] = true,
+    ["Loot.RoundRobin.AllowRestartVoting"] = true,
+}
+
+local function copySettingValues()
+    local copy = {}
+    for path, value in pairs(settingValues) do
+        copy[path] = value
+    end
+    return copy
+end
+local defaultSettingValues = copySettingValues()
+
+addon.configManager = {
+    Get = function(_, path)
+        return settingValues[path]
+    end,
+
+    Set = function(_, path, value)
+        settingValues[path] = value
+    end,
+
+    ResetAll = function()
+        settingValues = {}
+        for path, value in pairs(defaultSettingValues) do
+            settingValues[path] = value
+        end
+    end,
+}
+
+firstWindow:UpdateSettings()
+settingValues["General.ShowDistributionHistory"] = false
+firstWindow:UpdateSettings()
+assert(not firstWindow.tabs.History:IsShown(),
+    "Disabling distribution history should hide its tab")
+firstWindow:SelectTab("History")
+assert(firstWindow:GetActiveTab() == "Raid",
+    "Hidden distribution history should not be selectable")
+settingValues["General.ShowDistributionHistory"] = true
+firstWindow:UpdateSettings()
+assert(firstWindow.tabs.History:IsShown(),
+    "Enabling distribution history should restore its tab")
+assert(
+    firstWindow.settingsControls["General.Notifications"].button:GetText()
+        == "Notifications: On",
+    "Boolean settings should show their current value"
+)
+firstWindow.settingsControls["General.Notifications"].button:GetScript("OnClick")()
+assert(
+    settingValues["General.Notifications"] == false,
+    "Boolean setting control should save the toggled value"
+)
+assert(
+    firstWindow.settingsControls["General.Notifications"].button:GetText()
+        == "Notifications: Off",
+    "Boolean setting control should refresh after saving"
+)
+
+firstWindow.settingsControls["General.UIScale"].increaseButton:GetScript("OnClick")()
+assert(
+    settingValues["General.UIScale"] == 1.1
+        and firstWindow.frame:GetScale() == 1.1,
+    "UI scale control should persist and apply its value"
+)
+
+settingValues["General.Notifications"] = false
+local resetDialog = firstWindow.resetSettingsButton:GetScript("OnClick")()
+assert(resetDialog:IsShown(), "Reset Defaults should request confirmation")
+resetDialog.confirmButton:Click()
+assert(
+    settingValues["General.Notifications"] == true,
+    "Reset Defaults should restore configuration values"
+)
+
+local currentBoss = nil
+local bossPlayer = { GetName = function() return "Master" end }
+local session = {
+    GetBoss = function(_, name)
+        if currentBoss ~= nil and currentBoss:GetName() == name then
+            return currentBoss
+        end
+        return nil
+    end,
+    AddBoss = function(_, boss)
+        currentBoss = boss
+    end,
+    SetCurrentBoss = function(_, boss)
+        currentBoss = boss
+    end,
+    GetCurrentBoss = function()
+        return currentBoss
+    end,
+    IsCurrentBossKilled = function()
+        return currentBoss ~= nil and currentBoss.killed == true
+    end,
+    GetId = function() return "BOSS-SESSION" end,
+    GetLootSystem = function() return "RoundRobin" end,
+    GetMasterLooter = function() return bossPlayer end,
+    IsActive = function() return true end,
+    GetStartedAt = function() return 1 end,
+    GetEndedAt = function() return nil end,
+    GetPlayers = function()
+        return { GetAll = function() return { bossPlayer } end }
+    end,
+}
+local savedBossSession = 0
+addon.sessionManager = {
+    GetActive = function() return session end,
+    Save = function() savedBossSession = savedBossSession + 1 end,
+}
+addon.Loot = {
+    Bosses = {
+        Boss = {
+            New = function(name)
+                return {
+                    name = name,
+                    killed = false,
+                    GetName = function(self) return self.name end,
+                    IsKilled = function(self) return self.killed end,
+                    GetItems = function()
+                        return { Count = function() return 0 end }
+                    end,
+                }
+            end,
+        },
+    },
+}
+addon.lootManager = {
+    GetLootItems = function() return {} end,
+    PostBossLoot = function(_, killedAt)
+        assert(killedAt ~= nil, "Boss kill should be timestamped")
+        currentBoss.killed = true
+        return {}
+    end,
+}
+
+firstWindow.bossPanel.bossNameInput:SetText("Test Encounter")
+firstWindow.bossPanel.addBossButton:Click()
+assert(
+    currentBoss ~= nil
+        and currentBoss:GetName() == "Test Encounter",
+    "Boss UI should add and select the new encounter"
+)
+assert(
+    firstWindow.bossPanel.bossKilledButton:IsShown(),
+    "Newly added boss should be markable as defeated"
+)
+
+firstWindow.bossPanel.bossKilledButton:Click()
+assert(
+    currentBoss.killed
+        and not firstWindow.bossPanel.bossKilledButton:IsShown(),
+    "Mark Defeated should record the boss kill"
+)
+assert(
+    savedBossSession == 2,
+    "Adding and defeating a boss should persist the session"
 )
 
 firstWindow.tabs.Raid:Click()

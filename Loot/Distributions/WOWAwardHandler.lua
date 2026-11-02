@@ -8,6 +8,19 @@ local Constants =
     addon.Loot.Distributions.Constants
 
 local WoWAwardHandler = {}
+local pendingAwards = {}
+
+local function getTimestamp()
+    if GetServerTime ~= nil then
+        return GetServerTime()
+    end
+
+    if time ~= nil then
+        return time()
+    end
+
+    return 0
+end
 
 local function assertDistribution(
     distribution
@@ -83,6 +96,49 @@ local function getWinnerName(
     return winnerName
 end
 
+local function getCandidateIndex(winnerName)
+    if GetMasterLootCandidate == nil then
+        return nil
+    end
+
+    local exactMatch = nil
+    local normalizedMatch = nil
+    local normalizedMatchCount = 0
+    local normalizedWinner = string.lower(
+        string.match(winnerName, "^[^-]+") or winnerName
+    )
+
+    for index = 1, 40 do
+        local candidateName = GetMasterLootCandidate(index)
+
+        if candidateName == winnerName then
+            exactMatch = index
+            break
+        end
+
+        if candidateName ~= nil then
+            local normalizedCandidate = string.lower(
+                string.match(candidateName, "^[^-]+") or candidateName
+            )
+
+            if normalizedCandidate == normalizedWinner then
+                normalizedMatch = index
+                normalizedMatchCount = normalizedMatchCount + 1
+            end
+        end
+    end
+
+    if exactMatch ~= nil then
+        return exactMatch
+    end
+
+    if normalizedMatchCount == 1 then
+        return normalizedMatch
+    end
+
+    return nil
+end
+
 function WoWAwardHandler.AwardLoot(
     distribution
 )
@@ -100,28 +156,66 @@ function WoWAwardHandler.AwardLoot(
             distribution
         )
 
-    assert(
-        GiveMasterLoot ~= nil,
-        "GiveMasterLoot is not available"
-    )
+    local candidateIndex =
+        getCandidateIndex(winnerName)
 
-    GiveMasterLoot(
+    if candidateIndex == nil then
+        return false,
+            "Winner is not an eligible master loot candidate"
+    end
+
+    if GiveMasterLoot == nil then
+        return false, "GiveMasterLoot is not available"
+    end
+
+    pendingAwards[lootSlot] = distribution
+
+    local ok, errorMessage = pcall(
+        GiveMasterLoot,
         lootSlot,
-        winnerName
+        candidateIndex
     )
+    if not ok then
+        pendingAwards[lootSlot] = nil
+        return false, tostring(errorMessage)
+    end
 
-    return true
+    return nil
 end
 
-function WoWAwardHandler.Trade(
-    distribution
+function WoWAwardHandler.ConfirmLootSlotCleared(
+    lootSlot
 )
-    assertDistribution(
-        distribution
+    local distribution = pendingAwards[lootSlot]
+
+    if distribution == nil then
+        return false
+    end
+
+    pendingAwards[lootSlot] = nil
+    WoWAwardHandler.awardService:Confirm(
+        distribution,
+        true,
+        nil,
+        getTimestamp()
     )
 
-    return false,
-        "Trade award is not implemented"
+    return distribution
+end
+
+function WoWAwardHandler.FailPendingAwards(errorMessage)
+    local failed = {}
+    for lootSlot, distribution in pairs(pendingAwards) do
+        pendingAwards[lootSlot] = nil
+        WoWAwardHandler.awardService:Confirm(
+            distribution,
+            false,
+            errorMessage or "Loot window closed before award confirmation",
+            getTimestamp()
+        )
+        table.insert(failed, distribution)
+    end
+    return failed
 end
 
 function WoWAwardHandler.Register(
@@ -132,14 +226,11 @@ function WoWAwardHandler.Register(
         "Award service is required"
     )
 
+    WoWAwardHandler.awardService = awardService
+
     awardService:RegisterHandler(
         Constants.AwardMethods.LOOT,
         WoWAwardHandler.AwardLoot
-    )
-
-    awardService:RegisterHandler(
-        Constants.AwardMethods.TRADE,
-        WoWAwardHandler.Trade
     )
 
     return awardService

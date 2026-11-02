@@ -268,6 +268,39 @@ local function getWinnerText(
         .. ")"
 end
 
+local function isAwardFailed(distribution)
+    if distribution == nil or distribution.GetAward == nil then
+        return false
+    end
+    local award = distribution:GetAward()
+    return award ~= nil
+        and award.state == "FAILED"
+end
+
+local function normalizePlayerName(name)
+    if type(name) ~= "string" then
+        return nil
+    end
+
+    return string.lower(string.match(name, "^[^-]+") or name)
+end
+
+local function getLocalPlayerName()
+    if UnitFullName ~= nil then
+        local name, realm = UnitFullName("player")
+        if name ~= nil and realm ~= nil and realm ~= "" then
+            return name .. "-" .. realm
+        end
+        return name
+    end
+
+    if UnitName ~= nil then
+        return UnitName("player")
+    end
+
+    return nil
+end
+
 function MLLootWindow.New(parent)
     assert(
         parent ~= nil,
@@ -411,10 +444,37 @@ function MLLootWindow.New(parent)
     local awardButton =
         addon.UI.Components.CreateButton(
             frame,
-            "NinjaLootAwardButton",
-            100,
+            nil,
+            110,
             30
         )
+
+    local tradeButton = addon.UI.Components.CreateButton(
+        frame,
+        nil,
+        80,
+        30
+    )
+    tradeButton:SetPoint("RIGHT", awardButton, "LEFT", -6, 0)
+    tradeButton:SetText("Trade")
+
+    local needButton = addon.UI.Components.CreateButton(
+        frame,
+        nil,
+        80,
+        30
+    )
+    needButton:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 20, 20)
+    needButton:SetText("Need")
+
+    local passButton = addon.UI.Components.CreateButton(
+        frame,
+        nil,
+        80,
+        30
+    )
+    passButton:SetPoint("LEFT", needButton, "RIGHT", 6, 0)
+    passButton:SetText("Pass")
 
     awardButton:SetPoint(
         "BOTTOMRIGHT",
@@ -424,11 +484,12 @@ function MLLootWindow.New(parent)
         20
     )
 
-    awardButton:SetText(
-        "Award"
-    )
+    awardButton:SetText("Master Loot")
 
     awardButton:Hide()
+    tradeButton:Hide()
+    needButton:Hide()
+    passButton:Hide()
 
     local closeButton =
         addon.UI.Components.CreateCloseButton(
@@ -443,10 +504,15 @@ function MLLootWindow.New(parent)
     self.winnerText = winnerText
     self.playersText = playersText
     self.awardButton = awardButton
+    self.tradeButton = tradeButton
+    self.needButton = needButton
+    self.passButton = passButton
     self.closeButton = closeButton
 
     self.distribution = nil
     self.awardHandler = nil
+    self.tradeHandler = nil
+    self.responseHandler = nil
 
     awardButton:SetScript(
         "OnClick",
@@ -454,6 +520,17 @@ function MLLootWindow.New(parent)
             self:Award()
         end
     )
+
+    tradeButton:SetScript("OnClick", function()
+        self:Trade()
+    end)
+
+    needButton:SetScript("OnClick", function()
+        return self:Respond("NEED")
+    end)
+    passButton:SetScript("OnClick", function()
+        return self:Respond("PASS")
+    end)
 
     frame:Hide()
 
@@ -492,16 +569,102 @@ function MLLootWindow:GetAwardHandler()
     return self.awardHandler
 end
 
+function MLLootWindow:SetTradeHandler(handler)
+    assert(handler == nil or type(handler) == "function",
+        "Trade handler must be a function")
+    self.tradeHandler = handler
+    self:Update()
+    return self
+end
+
+function MLLootWindow:GetTradeHandler()
+    return self.tradeHandler
+end
+
+function MLLootWindow:Trade()
+    assert(self.distribution ~= nil, "Distribution is required")
+    assert(self.distribution:IsAwardPending() or isAwardFailed(self.distribution),
+        "Distribution is not waiting for award")
+    assert(self.tradeHandler ~= nil, "Trade handler is not configured")
+
+    local result = self.tradeHandler(self.distribution)
+    self:Update()
+    return result
+end
+
+function MLLootWindow:SetResponseHandler(handler)
+    assert(
+        handler == nil or type(handler) == "function",
+        "Response handler must be a function"
+    )
+
+    self.responseHandler = handler
+    return self
+end
+
+function MLLootWindow:GetResponseHandler()
+    return self.responseHandler
+end
+
+function MLLootWindow:Respond(response)
+    assert(self.distribution ~= nil, "Distribution is required")
+    assert(
+        response == "NEED" or response == "PASS",
+        "Invalid distribution response"
+    )
+    assert(self.responseHandler ~= nil, "Response handler is not configured")
+
+    local success = self.responseHandler(self.distribution, response)
+    self:Update()
+    return success
+end
+
+function MLLootWindow:UpdateResponseControls(distribution)
+    local localName = getLocalPlayerName()
+    local localPlayer = nil
+
+    if distribution ~= nil and localName ~= nil
+        and distribution.GetRollParticipants ~= nil
+    then
+        for _, player in ipairs(distribution:GetRollParticipants()) do
+            if normalizePlayerName(player:GetName())
+                == normalizePlayerName(localName)
+            then
+                localPlayer = player
+                break
+            end
+        end
+    end
+
+    local shouldShow = localPlayer ~= nil
+        and distribution.IsRolling ~= nil
+        and distribution:IsRolling()
+        and (distribution.IsRollGraceActive == nil
+            or not distribution:IsRollGraceActive())
+        and distribution:GetResponse(localPlayer) == nil
+        and (distribution.HasPendingRoll == nil
+            or not distribution:HasPendingRoll(localPlayer))
+        and self.responseHandler ~= nil
+
+    if shouldShow then
+        self.needButton:Show()
+        self.passButton:Show()
+    else
+        self.needButton:Hide()
+        self.passButton:Hide()
+    end
+
+    return self
+end
+
 function MLLootWindow:Award()
     assert(
         self.distribution ~= nil,
         "Distribution is required"
     )
 
-    assert(
-        self.distribution:IsAwardPending(),
-        "Distribution is not waiting for award"
-    )
+    assert(self.distribution:IsAwardPending() or isAwardFailed(self.distribution),
+        "Distribution is not waiting for award")
 
     assert(
         self.awardHandler ~= nil,
@@ -544,6 +707,8 @@ function MLLootWindow:Update()
         )
 
         self.awardButton:Hide()
+        self.tradeButton:Hide()
+        self:UpdateResponseControls(nil)
 
         return self
     end
@@ -634,13 +799,24 @@ function MLLootWindow:Update()
         )
     end
 
-    if distribution.IsAwardPending ~= nil
+    local canAward = distribution.IsAwardPending ~= nil
         and distribution:IsAwardPending()
-    then
+    local retryingAward = isAwardFailed(distribution)
+    if canAward or retryingAward then
+        self.awardButton:SetText(retryingAward and "Retry Loot" or "Master Loot")
         self.awardButton:Show()
+        if self.tradeHandler ~= nil then
+            self.tradeButton:SetText(retryingAward and "Retry Trade" or "Trade")
+            self.tradeButton:Show()
+        else
+            self.tradeButton:Hide()
+        end
     else
         self.awardButton:Hide()
+        self.tradeButton:Hide()
     end
+
+    self:UpdateResponseControls(distribution)
 
     return self
 end

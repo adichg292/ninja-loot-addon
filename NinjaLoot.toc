@@ -2,7 +2,7 @@
 ## Author: Pastah
 ## Version: 0.1.0
 ## SavedVariables: NinjaLootDatabase
-## Interface: 120001
+## Interface: 16001
 
 Core.lua
 
@@ -23,16 +23,20 @@ Loot/Distributions/DistributionPhase.lua
 Loot/Distributions/Distribution.lua
 Loot/Distributions/DistributionManager.lua
 Loot/Distributions/AwardService.lua
-Loot/Distributions/WoWAwardHandler.lua
+Loot/Distributions/WOWAwardHandler.lua
+Loot/Distributions/TradeAwardHandler.lua
 
 Loot/Config/Config.lua
 Loot/Config/ConfigManager.lua
+Loot/NotificationManager.lua
+Loot/AnnouncementManager.lua
 
 Loot/History/HistoryManager.lua
 
 Loot/Sessions/Session.lua
 Loot/Sessions/SessionManager.lua
 Loot/Sessions/SessionPersistence.lua
+Loot/Sessions/SessionSync.lua
 
 Loot/LootManager.lua
 
@@ -54,3 +58,4 @@ UI/Distribution/MLLootWindow.lua
 
 UI/MainWindow.lua
 UI/UIManager.lua
+UI/MinimapButton.lua

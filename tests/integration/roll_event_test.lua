@@ -59,6 +59,10 @@ local playerTwo = Player.New(
     "PlayerTwo"
 )
 
+local playerThree = Player.New(
+    "PlayerThree"
+)
+
 local boss = Boss.New(
     "Test Boss"
 )
@@ -77,6 +81,7 @@ local item = Item.New("Test Item")
 
 session:AddPlayer(playerOne)
 session:AddPlayer(playerTwo)
+session:AddPlayer(playerThree)
 session:AddBoss(boss)
 
 local distribution =
@@ -92,6 +97,11 @@ local distribution =
 
 session:AddDistribution(
     distribution
+)
+
+distribution:Respond(
+    playerOne,
+    Constants.Responses.NEED
 )
 
 addon.sessionManager =
@@ -112,6 +122,16 @@ assert(
 assert(
     addon.Events.Frame.events.CHAT_MSG_SYSTEM == true,
     "Core should register CHAT_MSG_SYSTEM"
+)
+
+TriggerEvent(
+    "CHAT_MSG_SYSTEM",
+    "PlayerTwo rolls 88 (1-100)"
+)
+
+assert(
+    distribution:GetResponse(playerTwo) == nil,
+    "A roll without a pending request should not be assigned to the distribution"
 )
 
 TriggerEvent(
@@ -153,6 +173,11 @@ assert(
     "A second roll should not replace the first valid roll"
 )
 
+distribution:Respond(
+    playerTwo,
+    Constants.Responses.NEED
+)
+
 TriggerEvent(
     "CHAT_MSG_SYSTEM",
     "PlayerTwo rolls 73 (1-100)"
@@ -191,4 +216,47 @@ TriggerEvent(
 assert(
     distribution:GetResponse(playerOne):GetRoll() == 87,
     "Non-1-100 rolls should be ignored"
+)
+
+local tieDistribution = Distribution.New(
+    Item.New("Tie Item"),
+    boss,
+    { playerOne, playerTwo, playerThree },
+    playerOne
+)
+session:AddDistribution(tieDistribution)
+
+for _, player in ipairs({ playerOne, playerTwo, playerThree }) do
+    tieDistribution:Respond(player, Constants.Responses.NEED)
+end
+
+TriggerEvent("CHAT_MSG_SYSTEM", "PlayerOne rolls 90 (1-100)")
+TriggerEvent("CHAT_MSG_SYSTEM", "PlayerTwo rolls 90 (1-100)")
+TriggerEvent("CHAT_MSG_SYSTEM", "PlayerThree rolls 20 (1-100)")
+
+assert(
+    tieDistribution:GetCurrentAttempt() == 2,
+    "A tied highest roll should begin a new tie attempt"
+)
+
+local oldAttemptResponse = tieDistribution:GetResponse(playerThree)
+assert(
+    oldAttemptResponse == nil,
+    "The non-tied player should not have a response in the new attempt"
+)
+
+TriggerEvent("CHAT_MSG_SYSTEM", "PlayerThree rolls 99 (1-100)")
+assert(
+    tieDistribution:GetResponse(playerThree) == nil,
+    "A non-eligible player's late roll must not match the tie reroll attempt"
+)
+
+tieDistribution:Respond(playerOne, Constants.Responses.NEED)
+tieDistribution:Respond(playerTwo, Constants.Responses.NEED)
+TriggerEvent("CHAT_MSG_SYSTEM", "PlayerOne rolls 80 (1-100)")
+TriggerEvent("CHAT_MSG_SYSTEM", "PlayerTwo rolls 70 (1-100)")
+
+assert(
+    tieDistribution:IsAwardPending(),
+    "Eligible tie reroll responses should complete the new attempt"
 )

@@ -219,6 +219,22 @@ function Distribution:GetMasterLooter()
     return self.masterLooter
 end
 
+function Distribution:SetMasterLooter(player)
+    assert(
+        self:IsPending(),
+        "Master looter can only change on a pending distribution"
+    )
+
+    assertParticipant(
+        self.participants,
+        player
+    )
+
+    self.masterLooter = player
+
+    return self
+end
+
 function Distribution:GetParticipants()
     return self.participants
 end
@@ -959,6 +975,24 @@ function Distribution:SetAwardFailed(
     return self
 end
 
+function Distribution:IsAwardFailed()
+    return self.award ~= nil
+        and self.award.state == Constants.AwardStates.FAILED
+end
+
+function Distribution:RetryAward()
+    assert(self:IsAwardFailed(), "Distribution has no failed award to retry")
+
+    self.phaseName = Constants.Phases.AWARD_PENDING
+    self.phase = nil
+    self.resultResponses = {}
+    self.resultFinalized = false
+    self.finalDecision = nil
+    self.finalDecisionAt = nil
+
+    return self
+end
+
 function Distribution:Acknowledge(player)
     assertParticipant(
         self.participants,
@@ -984,6 +1018,11 @@ function Distribution:Acknowledge(player)
 end
 
 function Distribution:VoteRestart(player)
+    assert(
+        Constants.AllowRestartVoting ~= false,
+        "Restart voting is disabled"
+    )
+
     assertParticipant(
         self.participants,
         player

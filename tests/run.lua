@@ -85,6 +85,9 @@ end
 
 local tests = {
     "tests/unit/loot/config/config_manager_test.lua",
+    "tests/unit/loot/config/config_runtime_test.lua",
+    "tests/unit/loot/config/notification_manager_test.lua",
+    "tests/unit/loot/config/announcement_manager_test.lua",
     "tests/unit/loot/config/config_test.lua",
 
     "tests/unit/loot/history/history_manager_test.lua",
@@ -92,6 +95,7 @@ local tests = {
     "tests/unit/loot/sessions/session_test.lua",
     "tests/unit/loot/sessions/session_manager_test.lua",
     "tests/unit/loot/sessions/session_persistence_test.lua",
+    "tests/unit/loot/sessions/session_sync_test.lua",
 
     "tests/unit/loot/players/player_test.lua",
     "tests/unit/loot/players/player_manager_test.lua",
@@ -110,6 +114,7 @@ local tests = {
     "tests/unit/loot/distributions/distribution_phase_test.lua",
     "tests/unit/loot/distributions/award_service_test.lua",
     "tests/unit/loot/distributions/wow_award_handler_test.lua",
+    "tests/unit/loot/distributions/trade_award_handler_test.lua",
 
     "tests/unit/loot/loot_manager_test.lua",
 
@@ -119,6 +124,7 @@ local tests = {
     "tests/ui/button_test.lua",
     "tests/ui/close_button_test.lua",
     "tests/ui/confirm_dialog_test.lua",
+    "tests/ui/minimap_button_test.lua",
 
     "tests/ui/sessions/session_timer_test.lua",
     "tests/ui/sessions/player_list_test.lua",

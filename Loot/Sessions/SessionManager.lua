@@ -38,6 +38,7 @@ function SessionManager.New(
         activeSessions = {},
         history = {},
         persistence = persistence,
+        syncHandler = nil,
     }, SessionManager)
 end
 
@@ -53,11 +54,25 @@ function SessionManager:SetPersistence(
     return self
 end
 
+function SessionManager:SetSyncHandler(handler)
+    assert(
+        handler == nil or type(handler) == "function",
+        "Sync handler must be a function"
+    )
+
+    self.syncHandler = handler
+    return self
+end
+
 function SessionManager:Save()
     if self.persistence ~= nil then
         self.persistence:Save(
             self
         )
+    end
+
+    if self.syncHandler ~= nil then
+        self.syncHandler(self)
     end
 
     return self
@@ -127,6 +142,28 @@ function SessionManager:Start(
         startedAt
     )
 
+    self:Save()
+
+    return session
+end
+
+function SessionManager:SetMasterLooter(
+    sessionId,
+    player
+)
+    assert(
+        sessionId ~= nil,
+        "Session ID is required"
+    )
+
+    local session = self.activeSessions[sessionId]
+
+    assert(
+        session ~= nil,
+        "Cannot change master looter on an unknown active session"
+    )
+
+    session:SetMasterLooter(player)
     self:Save()
 
     return session
@@ -294,6 +331,28 @@ function SessionManager:ClearHistory()
     self:Save()
 
     return self
+end
+
+function SessionManager:PruneHistoryBefore(timestamp)
+    assert(type(timestamp) == "number", "History cutoff must be a timestamp")
+
+    local kept = {}
+    local removed = 0
+    for _, session in ipairs(self.history) do
+        local endedAt = session:GetEndedAt()
+        if endedAt ~= nil and endedAt < timestamp then
+            removed = removed + 1
+        else
+            table.insert(kept, session)
+        end
+    end
+
+    if removed > 0 then
+        self.history = kept
+        self:Save()
+    end
+
+    return removed
 end
 
 function SessionManager:ClearActive(

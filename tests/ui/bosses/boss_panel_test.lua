@@ -1,5 +1,7 @@
 local addon = {}
 
+assert(loadfile("UI/Components/Button.lua"))("NinjaLoot", addon)
+
 local loadBossPanel = assert(
     loadfile("UI/Bosses/BossPanel.lua")
 )
@@ -108,18 +110,44 @@ assert(
     panel:GetText()
     == "Name: Test Boss\n"
         .. "Status: Alive\n"
-        .. "Killed At: Not killed\n"
         .. "Loot Count: 3",
     "Alive boss information is incorrect"
 )
 
-boss.IsKilled = function()
-    return true
-end
+assert(
+    panel.bossKilledButton:IsShown(),
+    "A living current boss should offer Mark Defeated"
+)
 
-boss.GetKilledAt = function()
-    return 12345
-end
+local addedBossName = nil
+panel:SetAddBossHandler(function(name)
+    addedBossName = name
+    return true
+end)
+panel.bossNameInput:SetText("  Ragnaros  ")
+panel.addBossButton:Click()
+
+assert(
+    addedBossName == "Ragnaros",
+    "Add Boss should trim and submit the entered name"
+)
+assert(
+    panel.bossNameInput:GetText() == "",
+    "Successful boss addition should clear the input"
+)
+
+local bossKilled = false
+panel:SetBossKilledHandler(function()
+    bossKilled = true
+    boss.IsKilled = function() return true end
+    return true
+end)
+panel.bossKilledButton:Click()
+
+assert(
+    bossKilled and not panel.bossKilledButton:IsShown(),
+    "Mark Defeated should invoke its handler and hide after defeat"
+)
 
 panel:Update(session)
 
@@ -127,7 +155,6 @@ assert(
     panel:GetText()
     == "Name: Test Boss\n"
         .. "Status: Defeated\n"
-        .. "Killed At: 12345\n"
         .. "Loot Count: 3",
     "Defeated boss information is incorrect"
 )

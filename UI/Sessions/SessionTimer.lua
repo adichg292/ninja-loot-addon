@@ -76,11 +76,27 @@ function SessionTimer.New(parent)
 
     self.frame = frame
     self.text = text
+    self.session = nil
+    self.elapsedSinceUpdate = 0
+
+    frame:SetScript("OnUpdate", function(_, elapsed)
+        self.elapsedSinceUpdate =
+            self.elapsedSinceUpdate + (elapsed or 0)
+
+        if self.elapsedSinceUpdate >= 1 then
+            self.elapsedSinceUpdate =
+                self.elapsedSinceUpdate % 1
+
+            self:Update(self.session)
+        end
+    end)
 
     return self
 end
 
 function SessionTimer:Update(session)
+    self.session = session
+
     if session == nil then
         self.text:SetText(
             "Session Time: 00:00:00"

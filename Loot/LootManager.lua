@@ -78,6 +78,15 @@ local function findItemBySlot(
         end
     end
 
+    for _, item in ipairs(items) do
+        if item:GetLink() == itemLink
+            and not item:IsUnavailable()
+            and not item:IsAwarded()
+        then
+            return item
+        end
+    end
+
     return nil
 end
 
@@ -94,6 +103,7 @@ function LootManager.New(
 
         selectedItem = nil,
         lootOpen = false,
+        lootSlotItems = {},
 
         distributionHandler = nil,
     }, LootManager)
@@ -273,6 +283,7 @@ function LootManager:ReadLoot()
         boss:GetItems():GetAll()
 
     local registered = {}
+    local lootSlotItems = {}
 
     local lootCount =
         GetNumLootItems()
@@ -314,12 +325,10 @@ function LootManager:ReadLoot()
                         itemLink
                     )
 
-                item:SetLootSlot(
-                    lootSlot
-                )
-
                 boss:AddItem(item)
             end
+
+            item:SetLootSlot(lootSlot)
 
             item:SetLootQuantity(
                 lootQuantity or 1
@@ -352,9 +361,12 @@ function LootManager:ReadLoot()
                 registered,
                 item
             )
+
+            lootSlotItems[lootSlot] = item
         end
     end
 
+    self.lootSlotItems = lootSlotItems
     self.lootOpen = true
 
     return registered
@@ -582,27 +594,35 @@ function LootManager:HandleLootSlotCleared(
         return nil
     end
 
-    for _, item in ipairs(
-        boss:GetItems():GetAll()
-    ) do
-        if item:GetLootSlot()
-            == lootSlot
-        then
-            item:MarkUnavailable()
+    local item = self.lootSlotItems[lootSlot]
 
-            if self.selectedItem == item then
-                self.selectedItem = nil
+    if item == nil then
+        for _, candidate in ipairs(boss:GetItems():GetAll()) do
+            if candidate:GetLootSlot() == lootSlot then
+                item = candidate
+                break
             end
-
-            return item
         end
     end
 
-    return nil
+    self.lootSlotItems[lootSlot] = nil
+
+    if item == nil then
+        return nil
+    end
+
+    item:MarkUnavailable()
+
+    if self.selectedItem == item then
+        self.selectedItem = nil
+    end
+
+    return item
 end
 
 function LootManager:HandleLootClosed()
     self.lootOpen = false
+    self.lootSlotItems = {}
 
     return self
 end

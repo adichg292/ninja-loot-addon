@@ -29,11 +29,20 @@ loadMLLootWindow(
     addon
 )
 
+assert(loadfile("UI/MinimapButton.lua"))("NinjaLoot", addon)
+local previousMinimap = Minimap
+Minimap = CreateFrame("Frame", nil, UIParent)
+
 local loadUIManager = assert(
     loadfile("UI/UIManager.lua")
 )
 
-local createdMainWindow = {}
+local mainWindowShown = false
+local createdMainWindow = {
+    IsShown = function() return mainWindowShown end,
+    Show = function() mainWindowShown = true end,
+    Hide = function() mainWindowShown = false end,
+}
 
 addon.UI.CreateMainWindow =
     function()
@@ -59,6 +68,17 @@ assert(
 )
 
 manager:Initialize()
+
+assert(manager.minimapButton.frame:IsShown(),
+    "Minimap button should initialize visible by default")
+manager.minimapButton.frame:GetScript("OnClick")()
+assert(mainWindowShown, "Minimap click should open the main window")
+manager.minimapButton.frame:GetScript("OnClick")()
+assert(not mainWindowShown, "Minimap click should toggle the main window closed")
+manager:SetMinimapButtonVisible(false)
+assert(not manager.minimapButton.frame:IsShown(),
+    "Minimap setting should hide the button")
+Minimap = previousMinimap
 
 assert(
     manager:GetMainWindow()
@@ -101,6 +121,13 @@ assert(
         == awardHandler,
     "Award handler was not passed to ML loot window"
 )
+
+local tradeHandler = function() return nil end
+manager:SetTradeHandler(tradeHandler)
+assert(manager:GetTradeHandler() == tradeHandler,
+    "Trade handler should be stored")
+assert(manager:GetMLLootWindow():GetTradeHandler() == tradeHandler,
+    "Trade handler should be passed to ML loot window")
 
 local distribution = {
     GetItem = function()

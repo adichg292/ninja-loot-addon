@@ -1,5 +1,7 @@
 local addon = {}
 
+assert(loadfile("UI/Components/Button.lua"))("NinjaLoot", addon)
+
 local loadLootList = assert(
     loadfile("UI/Loot/LootList.lua")
 )
@@ -127,4 +129,49 @@ assert(
     == "Test Sword [AVAILABLE]\n"
         .. "Test Helmet [DISTRIBUTING]",
     "Loot list contents are incorrect"
+)
+
+local itemState = "AVAILABLE"
+local distributableItem = {
+    GetName = function()
+        return "Distributable Ring"
+    end,
+
+    GetState = function()
+        return itemState
+    end,
+}
+local startedItem = nil
+lootList:Update({
+    GetLootItems = function()
+        return { distributableItem }
+    end,
+
+    StartDistribution = function(_, item)
+        startedItem = item
+        itemState = "DISTRIBUTING"
+        return "distribution"
+    end,
+})
+
+assert(
+    lootList.rows[1].button:IsShown(),
+    "Available loot should have a distribution action"
+)
+
+assert(
+    lootList.rows[1].button:GetText() == "Distribute",
+    "Loot action should be labeled Distribute"
+)
+
+lootList.rows[1].button:GetScript("OnClick")()
+
+assert(
+    startedItem == distributableItem,
+    "Loot action should start a distribution for its item"
+)
+
+assert(
+    not lootList.rows[1].button:IsShown(),
+    "Loot action should hide after distribution starts"
 )

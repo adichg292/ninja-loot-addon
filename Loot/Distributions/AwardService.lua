@@ -121,6 +121,10 @@ function AwardService:Award(
         errorMessage =
         handler(distribution)
 
+    if success == nil then
+        return nil
+    end
+
     if success then
         distribution:SetAwardSuccess(
             startedAt
@@ -137,6 +141,47 @@ function AwardService:Award(
             errorMessage
             or "Award failed",
             startedAt
+        )
+    end
+
+    return success
+end
+
+function AwardService:Confirm(
+    distribution,
+    success,
+    errorMessage,
+    completedAt
+)
+    assert(
+        distribution ~= nil,
+        "Distribution is required"
+    )
+
+    assert(
+        distribution:GetAward() ~= nil
+        and distribution:GetAward().state
+            == Constants.AwardStates.PENDING,
+        "Distribution has no pending award"
+    )
+
+    local timestamp = completedAt
+    if timestamp == nil then
+        timestamp = getTimestamp()
+    end
+
+    if success then
+        distribution:SetAwardSuccess(timestamp)
+
+        if self.lootManager ~= nil then
+            self.lootManager:MarkItemAwarded(
+                distribution:GetItem()
+            )
+        end
+    else
+        distribution:SetAwardFailed(
+            errorMessage or "Award was not confirmed",
+            timestamp
         )
     end
 
@@ -209,6 +254,32 @@ function AwardService:AwardWinner(
         method,
         awardStartTime
     )
+end
+
+function AwardService:RetryAward(
+    distribution,
+    method,
+    selectedAt,
+    startedAt
+)
+    assert(distribution ~= nil, "Distribution is required")
+    assert(distribution:IsAwardFailed(), "Distribution has no failed award to retry")
+    assert(method ~= nil and self.handlers[method] ~= nil,
+        "No award handler registered")
+
+    if self.lootManager ~= nil then
+        local valid, errorMessage = self.lootManager:VerifyDistributionItem(distribution)
+        if not valid then
+            distribution:SetAwardFailed(
+                errorMessage or "Loot item is no longer available",
+                startedAt or selectedAt or getTimestamp()
+            )
+            return false, errorMessage or "Loot item is no longer available"
+        end
+    end
+
+    distribution:RetryAward()
+    return self:AwardWinner(distribution, method, selectedAt, startedAt)
 end
 
 function AwardService:HasHandler(method)

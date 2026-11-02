@@ -124,6 +124,53 @@ function Session:GetMasterLooter()
     return self.masterLooter
 end
 
+function Session:SetMasterLooter(player)
+    assert(
+        not self:IsEnded(),
+        "Cannot change the master looter of an ended session"
+    )
+
+    assertValidPlayer(player)
+
+    assert(
+        self:GetPlayer(player:GetName()) == player,
+        "Master looter must belong to the session"
+    )
+
+    local distributions =
+        self.distributions:GetAll()
+
+    for _, distribution in ipairs(distributions) do
+        if distribution:IsPending() then
+            local isParticipant = false
+
+            for _, participant in ipairs(
+                distribution:GetParticipants()
+            ) do
+                if participant == player then
+                    isParticipant = true
+                    break
+                end
+            end
+
+            assert(
+                isParticipant,
+                "Master looter must participate in every pending distribution"
+            )
+        end
+    end
+
+    self.masterLooter = player
+
+    for _, distribution in ipairs(distributions) do
+        if distribution:IsPending() then
+            distribution:SetMasterLooter(player)
+        end
+    end
+
+    return self
+end
+
 function Session:GetLifecycle()
     return self.lifecycle
 end

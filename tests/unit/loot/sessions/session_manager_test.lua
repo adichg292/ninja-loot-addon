@@ -153,6 +153,24 @@ assert(
     "Creating two sessions should save twice"
 )
 
+sessionOne:AddPlayer(playerOne)
+sessionOne:AddPlayer(playerTwo)
+
+manager:SetMasterLooter(
+    "SESSION-ONE",
+    playerTwo
+)
+
+assert(
+    sessionOne:GetMasterLooter() == playerTwo,
+    "Session manager should hand off master looter"
+)
+
+assert(
+    persistenceSaveCount == 3,
+    "Master looter handoff should persist the session"
+)
+
 manager:Start(
     "SESSION-ONE",
     100
@@ -217,6 +235,11 @@ assert(
     == sessionTwo,
     "GetSession should find active sessions"
 )
+
+assert(manager:PruneHistoryBefore(301) == 1,
+    "History pruning should remove sessions older than the cutoff")
+assert(manager:GetHistoryCount() == 0,
+    "Pruned sessions should no longer appear in history")
 
 assert(
     persistenceLoadCount == 0,

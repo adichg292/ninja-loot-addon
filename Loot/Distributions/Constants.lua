@@ -53,5 +53,6 @@ Constants.RollTimerSeconds = 20
 Constants.RollGraceSeconds = 1
 Constants.ResultTimerSeconds = 10
 Constants.RestartVoteThreshold = 4
+Constants.AllowRestartVoting = true
 
 addon.Loot.Distributions.Constants = Constants

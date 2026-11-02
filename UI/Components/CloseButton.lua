@@ -6,7 +6,7 @@ addon.UI.Components = addon.UI.Components or {}
 function addon.UI.Components.CreateCloseButton(parent)
     local button = addon.UI.Components.CreateButton(
         parent,
-        "NinjaLootCloseButton",
+        nil,
         80,
         30
     )

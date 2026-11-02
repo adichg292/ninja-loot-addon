@@ -44,8 +44,15 @@ assert(
 )
 
 assert(
-    closeButton.name == "NinjaLootCloseButton",
-    "Close button name is incorrect"
+    closeButton.name == nil,
+    "Close button should be anonymous to avoid global name collisions"
+)
+
+local secondCloseButton = addon.UI.Components.CreateCloseButton(parent)
+assert(
+    secondCloseButton ~= closeButton
+        and secondCloseButton.name == nil,
+    "Multiple close buttons should not collide through global frame names"
 )
 
 assert(
